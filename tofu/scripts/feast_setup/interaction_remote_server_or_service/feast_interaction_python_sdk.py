@@ -3,7 +3,7 @@ import datetime
 from feast import FeatureStore, Project
 
 
-fs = FeatureStore(repo_path='/infra_staging')
+fs = FeatureStore(repo_path='/Users/shuminzheng/PycharmProjects/devour/devour_feature_store/infra_staging')
 # only works if registry db is exposed directly as above
 # for remote registry like the following, get metadata is fine, but actual calling to get_online_features failed
 # w/ weird error saying feature view xxx not found in project
@@ -30,10 +30,9 @@ for fv in fs.list_feature_views():
 
 res = fs.get_online_features(
 	features=[
-		"product_general_score:general_score"],
+		"fv_push_product_bestseller_ethnicity_tag:short_term_products_ethnic_tag"],
 	entity_rows=[
-		{"product_id": 1001},
-		{"product_id": 9}
+		{"ethnicity_user": 'Chinese'},
 	],
 
 ).to_dict()

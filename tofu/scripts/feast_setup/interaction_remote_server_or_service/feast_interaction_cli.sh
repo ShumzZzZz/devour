@@ -21,3 +21,8 @@ curl "http://localhost:8002/get-online-features" \
 
 
 feast get-online-features -f fv_push_product_general_score:general_score -e product_id=9000001 -e product_id=1001
+
+--json '{
+		"features": ["fv_push_product_bestseller_ethnicity_tag:short_term_products_ethnic_tag"],
+		"entities": {"ethnicity_user": ["Chinese"]}
+	}'

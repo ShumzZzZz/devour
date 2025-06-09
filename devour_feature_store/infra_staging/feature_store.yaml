@@ -2,7 +2,7 @@ project: devour
 provider: local
 registry:
     registry_type: sql
-    path: postgresql+psycopg://feastuser:pgfeastpassword@localhost:8001/feastdb
+    path: postgresql+psycopg://feastuser:pgfeastpassword@35.94.221.104:30432/feastdb
     cache_ttl_seconds: 60
     sqlalchemy_config_kwargs:
         echo: false
@@ -11,7 +11,7 @@ online_store:
 #    type: redis
 #    connection_string: "localhost:8002"
     type: remote
-    path: http://localhost:8002
+    path: http://35.94.221.104:30080
 offline_store:
     type: duckdb
 entity_key_serialization_version: 3

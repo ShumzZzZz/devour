@@ -42,3 +42,9 @@ variable "tigera_calico_version" {
   type        = string
   default     = "3.29.3"
 }
+
+variable "key_pair_name" {
+  description = "key pair name"
+  type        = string
+  default     = "shumin-test"
+}

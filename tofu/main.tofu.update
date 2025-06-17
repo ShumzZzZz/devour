@@ -5,7 +5,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "5.91.0"
+      version = "5.100.0"
     }
   }
 }
@@ -47,7 +47,7 @@ data "aws_availability_zones" "available" {}
 locals {
   azs           = slice(data.aws_availability_zones.available.names, 0, 3)
   public_cidrs  = [for i in range(length(local.azs)) : cidrsubnet("10.10.0.0/16", 8, i)]
-  private_cidrs = [for i in range(length(local.azs)) : cidrsubnet("10.10.0.0/16", 8, i + 10)]
+  private_cidrs = [for i in range(length(local.azs)) : cidrsubnet("10.10.0.0/16", 8, i + 100)]
 }
 
 ############################
@@ -63,9 +63,9 @@ resource "aws_subnet" "public" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name                                = "devour-k8s-public-${each.key}"
-    "kubernetes.io/role/elb"            = 1
-    "kubernetes.io/cluster/devour-k8s"  = "shared"
+    Name                               = "devour-k8s-public-${each.key}"
+    "kubernetes.io/role/elb"           = "1"
+    "kubernetes.io/cluster/devour-k8s" = "shared"
   }
 }
 
@@ -80,9 +80,9 @@ resource "aws_subnet" "private" {
   availability_zone = each.value.az
 
   tags = {
-    Name                                        = "devour-k8s-private-${each.key}"
-    "kubernetes.io/role/internal-elb"           = 1
-    "kubernetes.io/cluster/devour-k8s"          = "shared"
+    Name                               = "devour-k8s-private-${each.key}"
+    "kubernetes.io/role/internal-elb"  = "1"
+    "kubernetes.io/cluster/devour-k8s" = "shared"
   }
 }
 
@@ -90,8 +90,8 @@ resource "aws_subnet" "private" {
 # NAT Gateways (one per AZ)
 ############################
 resource "aws_eip" "nat" {
-  for_each = aws_subnet.public
-  domain      = "vpc"
+  for_each   = aws_subnet.public
+  domain     = "vpc"
   depends_on = [aws_internet_gateway.devour_k8s_igw]
 }
 
@@ -215,6 +215,51 @@ resource "aws_vpc_security_group_ingress_rule" "allow_calico_ipip" {
   to_port           = -1
 }
 
+resource "aws_security_group" "bastion_sg" {
+  name        = "bastion-sg"
+  description = "Security group for bastion host"
+  vpc_id      = aws_vpc.devour_k8s.id
+
+  ingress {
+    description = "Allow SSH from anywhere"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "Allow all outbound"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "bastion-sg"
+  }
+}
+
+resource "aws_eip" "bastion" {
+  domain     = "vpc"
+  depends_on = [aws_internet_gateway.devour_k8s_igw]
+}
+
+resource "aws_instance" "bastion" {
+  ami                         = "ami-03f8acd418785369b" # replace with your bastion AMI
+  instance_type               = "t2.micro"
+  key_name                    = var.key_pair_name
+  subnet_id                   = aws_subnet.public[0].id
+  vpc_security_group_ids      = [aws_security_group.bastion_sg.id]
+  associate_public_ip_address = true
+
+  tags = {
+    Name = "devour-k8s-bastion"
+  }
+}
+
+
 ###############################################################################
 # IAM for worker nodes
 ###############################################################################
@@ -226,9 +271,9 @@ resource "aws_iam_policy" "s3_join_command_policy" {
     Version = "2012-10-17",
     Statement = [
       {
-        Action = ["s3:*"],
-        Resource = "*"
-        Effect = "Allow",
+        "Action"   = ["s3:*"],
+        "Resource" = "*"
+        "Effect"   = "Allow",
       },
       {
         "Action" : "ec2:*",
@@ -305,14 +350,15 @@ resource "aws_instance" "k8s_control_plane_nodes" {
   count                  = 1
   ami                    = "ami-03f8acd418785369b"
   instance_type          = "t2.medium"
-  key_name               = "shumin-test"
+  key_name               = var.key_pair_name
   iam_instance_profile   = aws_iam_instance_profile.ec2_k8s_node_profile.name
-  subnet_id              = values(aws_subnet.private)[0].id   # ← private
+  subnet_id              = values(aws_subnet.private)[0].id # ← private
   vpc_security_group_ids = [aws_security_group.devour_k8s.id]
 
   root_block_device {
-    volume_size = 20
-    volume_type = "gp3"
+    volume_size           = 22
+    volume_type           = "gp3"
+    delete_on_termination = true
   }
 
   tags = { Name = "k8s-control-plane" }
@@ -322,14 +368,15 @@ resource "aws_instance" "k8s_worker_nodes" {
   count                  = 2
   ami                    = "ami-03f8acd418785369b"
   instance_type          = "t2.xlarge"
-  key_name               = "shumin-test"
+  key_name               = var.key_pair_name
   iam_instance_profile   = aws_iam_instance_profile.ec2_k8s_node_profile.name
-  subnet_id              = values(aws_subnet.private)[0].id   # ← private
+  subnet_id              = values(aws_subnet.private)[0].id # ← private
   vpc_security_group_ids = [aws_security_group.devour_k8s.id]
 
   root_block_device {
-    volume_size = 100
-    volume_type = "gp3"
+    volume_size           = 111
+    volume_type           = "gp3"
+    delete_on_termination = true
   }
 
   tags = { Name = "k8s-worker-node-${count.index}" }
@@ -342,31 +389,44 @@ locals {
   cp_private_ips = join(",", aws_instance.k8s_control_plane_nodes[*].private_ip)
   wk_private_ips = join(",", aws_instance.k8s_worker_nodes[*].private_ip)
   cp_public_ips  = join(",", aws_instance.k8s_control_plane_nodes[*].public_ip)
-  init_script    = templatefile("scripts/init.sh.tftpl", {
-                      cp_private_ips        = local.cp_private_ips,
-                      cp_public_ips         = local.cp_public_ips,
-                      wk_private_ips        = local.wk_private_ips,
-                      containerd_version    = var.containerd_version,
-                      runc_version          = var.runc_version,
-                      cni_plugin_version    = var.cni_plugin_version,
-                      tigera_calico_version = var.tigera_calico_version,
-                      timestamp_suffix      = timestamp()
-                    })
-  all_nodes      = merge(
-                      { for idx, i in aws_instance.k8s_control_plane_nodes : "cp-${idx}" => i },
-                      { for idx, i in aws_instance.k8s_worker_nodes       : "wk-${idx}" => i }
-                    )
+  init_script = templatefile("scripts/init.sh.tftpl", {
+    cp_private_ips        = local.cp_private_ips,
+    cp_public_ips         = local.cp_public_ips,
+    control_plane_cidr    = aws_subnet.private[0].cidr_block,
+    bastion_ip            = aws_instance.bastion.private_ip,
+    wk_private_ips        = local.wk_private_ips,
+    containerd_version    = var.containerd_version,
+    runc_version          = var.runc_version,
+    cni_plugin_version    = var.cni_plugin_version,
+    tigera_calico_version = var.tigera_calico_version,
+    timestamp_suffix      = timestamp()
+  })
+  all_nodes = merge(
+    { for idx, i in aws_instance.k8s_control_plane_nodes : "cp-${idx}" => i },
+    { for idx, i in aws_instance.k8s_worker_nodes : "wk-${idx}" => i }
+  )
 }
 
 resource "null_resource" "init_nodes" {
   for_each   = local.all_nodes
-  depends_on = [aws_instance.k8s_control_plane_nodes, aws_instance.k8s_worker_nodes]
+  depends_on = [
+    aws_instance.k8s_control_plane_nodes,
+    aws_instance.k8s_worker_nodes,
+    aws_instance.bastion,
+    aws_nat_gateway.nat,
+    aws_route_table.private
+  ]
 
   connection {
-    type        = "ssh"
-    host        = each.value.private_ip   # ← private
-    user        = "ubuntu"
-    private_key = file("~/.ssh/shumin-test.pem")
+    type         = "ssh"
+    host         = each.value.private_ip
+    user         = "ubuntu"
+    private_key  = file("~/.ssh/shumin-test.pem")
+    agent        = true
+    bastion_host = aws_instance.bastion.public_ip
+    bastion_user = "ubuntu"
+    # bastion_private_key    = file("~/.ssh/shumin-test.pem")
+    # timeout                = "10m"
   }
 
   provisioner "remote-exec" {
@@ -386,10 +446,10 @@ resource "null_resource" "init_nodes" {
 # **Private** NLB for Kubernetes API Server
 ###############################################################################
 resource "aws_lb" "k8s_api_nlb" {
-  name                       = "k8s-api-nlb"
-  load_balancer_type         = "network"
-  internal                   = true                     # ← private
-  subnets                    = [for s in aws_subnet.private : s.id]
+  name                             = "k8s-api-nlb"
+  load_balancer_type               = "network"
+  internal                         = true # ← private
+  subnets                          = [for s in aws_subnet.private : s.id]
   enable_cross_zone_load_balancing = true
 
   tags = { Name = "k8s-api-nlb" }
@@ -437,9 +497,9 @@ resource "aws_lb_listener" "k8s_api_listener" {
 # **Internet-facing** *shared* NLB for future Services
 ###############################################################################
 resource "aws_lb" "shared_public_nlb" {
-  name               = "shared-public-nlb"
-  load_balancer_type = "network"
-  subnets            = [for s in aws_subnet.public : s.id]  # public subnets
+  name                             = "shared-public-nlb"
+  load_balancer_type               = "network"
+  subnets                          = [for s in aws_subnet.public : s.id] # public subnets
   enable_cross_zone_load_balancing = true
 
   tags = { Name = "shared-public-nlb" }
@@ -448,12 +508,12 @@ resource "aws_lb" "shared_public_nlb" {
 ###############################################################################
 # Outputs
 ###############################################################################
-output "vpc_id"                { value = aws_vpc.devour_k8s.id }
-output "security_group_id"     { value = aws_security_group.devour_k8s.id }
-output "cp_private_ips"        { value = aws_instance.k8s_control_plane_nodes[*].private_ip }
-output "wk_public_ips"         { value = aws_instance.k8s_worker_nodes[*].public_ip }   # may be null
-output "cp_public_ips"         { value = aws_instance.k8s_control_plane_nodes[*].public_ip }
-output "public_subnet_ids"     { value = [for s in aws_subnet.public  : s.id] }
-output "private_subnet_ids"    { value = [for s in aws_subnet.private : s.id] }
-output "k8s_api_nlb_dns_name"  { value = aws_lb.k8s_api_nlb.dns_name }
-output "shared_nlb_dns_name"   { value = aws_lb.shared_public_nlb.dns_name }
+output "vpc_id" { value = aws_vpc.devour_k8s.id }
+output "security_group_id" { value = aws_security_group.devour_k8s.id }
+output "cp_private_ips" { value = aws_instance.k8s_control_plane_nodes[*].private_ip }
+output "wk_public_ips" { value = aws_instance.k8s_worker_nodes[*].public_ip } # may be null
+output "cp_public_ips" { value = aws_instance.k8s_control_plane_nodes[*].public_ip }
+output "public_subnet_ids" { value = [for s in aws_subnet.public : s.id] }
+output "private_subnet_ids" { value = [for s in aws_subnet.private : s.id] }
+output "k8s_api_nlb_dns_name" { value = aws_lb.k8s_api_nlb.dns_name }
+output "shared_nlb_dns_name" { value = aws_lb.shared_public_nlb.dns_name }

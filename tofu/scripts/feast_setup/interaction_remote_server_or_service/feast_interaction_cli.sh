@@ -1,5 +1,7 @@
 #!/bin/zsh
 
+# test pod : kubectl run curlpod --rm -it --restart=Never --image=curlimages/curl:latest -- sh
+
 curl "http://localhost:8002/get-online-features" \
 	--json '{
 		"features": ["product_general_score_fresh:general_score"],

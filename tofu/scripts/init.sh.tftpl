@@ -105,7 +105,7 @@ if [[ ",${cp_private_ips}," == *",$${current_ip},"* ]]; then
     # switch to ubuntu user
     su - ubuntu <<-'EOF'
     cd $${HOME}
-    sudo kubeadm init --pod-network-cidr ${control_plane_cidr} --apiserver-cert-extra-sans=${bastion_ip}
+    sudo kubeadm init --pod-network-cidr 192.168.0.0/16 --apiserver-cert-extra-sans=${cp_public_ips}
 
     mkdir -p /home/ubuntu/.kube
     sudo cp -i /etc/kubernetes/admin.conf /home/ubuntu/.kube/config

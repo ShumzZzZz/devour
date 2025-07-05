@@ -78,7 +78,8 @@ spec:
         any:
           - resources:
               kinds: ["Deployment"]
-              namespaces: "feast"
+              namespaces:
+                - "feast"
               selector:
                 matchExpressions:
                   - key: "feast.dev/name"

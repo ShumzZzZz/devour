@@ -28,3 +28,5 @@ feast get-online-features -f fv_push_product_general_score:general_score -e prod
 		"features": ["fv_push_product_bestseller_ethnicity_tag:short_term_products_ethnic_tag"],
 		"entities": {"ethnicity_user": ["Chinese"]}
 	}'
+
+feast get-online-features -f fv_push_category_ranking:l1_all_list -e user_id=7216502

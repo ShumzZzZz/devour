@@ -85,6 +85,11 @@ spec:
                   - key: "feast.dev/name"
                     operator: Exists
       mutate:
+        targets:
+          - apiVersion: apps/v1
+            kind: Deployment
+            namespace: "{{ request.object.metadata.namespace }}"
+            name: "{{ request.object.metadata.name }}"
         foreach:
           - list: "request.object.spec.template.spec.containers"
             patchStrategicMerge:

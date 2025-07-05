@@ -64,3 +64,32 @@ spec:
                         operator: "Equal"
                         value: featurestore
                         effect: "NoExecute"
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: feast-pod-set-workingdir
+  namespace: kyverno
+spec:
+  mutateExistingOnPolicyUpdate: true
+  rules:
+    - name: feast-override-workingdir
+      match:
+        any:
+          - resources:
+              kinds: ["Deployment"]
+              namespaces: "feast"
+              selector:
+                matchExpressions:
+                  - key: "feast.dev/name"
+                    operator: Exists
+      mutate:
+        foreach:
+          - list: "request.object.spec.template.spec.containers"
+            patchStrategicMerge:
+              spec:
+                template:
+                  spec:
+                    containers:
+                      - name: "{{ element.name }}"
+                        workingDir: "/feast-data-original/devour/"

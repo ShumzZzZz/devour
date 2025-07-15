@@ -7,6 +7,8 @@ stringData:
   redis: |
     type: redis
     connection_string: redis-service.feast.svc.cluster.local:6379
+#        connection_string: "clustercfg.tb1-feature-store.sxlxhn.use2.cache.amazonaws.com:6379,ssl=true,password="
+#        redis_type: redis_cluster
   sql: |
     path: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres-service.feast.svc.cluster.local:5432/${POSTGRES_DB}
     cache_ttl_seconds: 60
@@ -22,11 +24,16 @@ metadata:
 spec:
   feastProject: devour
   feastProjectDir:
-    git:
-      url: https://github.com/ShumzZzZz/devour
-      ref: 824d351
-      featureRepoPath: devour_feature_store # demo_project/staging/feature_repo
+    packaged:
+      Path: "/feast-data-original/devour"
+#    git:
+#      url: https://github.com/ShumzZzZz/devour
+#      ref: 824d351
+#      featureRepoPath: devour_feature_store # demo_project/staging/feature_repo
   services:
+#    disableInitContainers: true
+    deploymentStrategy:
+      type: RollingUpdate
     registry:
       local:
         persistence:
@@ -41,6 +48,8 @@ spec:
           - configMapRef:
               name: feast-config
           logLevel: debug
+          image: "docker.io/shuminzheng/devour:v1.0"
+          imagePullPolicy: "Always"
     offlineStore:
       persistence:
         file:
@@ -65,6 +74,8 @@ spec:
             cpu: 150m
             memory: 128Mi
         logLevel: debug
+        image: "docker.io/shuminzheng/devour:v1.0"
+        imagePullPolicy: "Always"
     ui:
       envFrom:
       - secretRef:
@@ -72,4 +83,6 @@ spec:
       - configMapRef:
           name: feast-config
       logLevel: debug
+      image: "docker.io/shuminzheng/devour:v1.0"
+      imagePullPolicy: "Always"
 

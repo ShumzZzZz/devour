@@ -25,7 +25,7 @@ spec:
   feastProject: devour
   feastProjectDir:
     packaged:
-      path: "/feast-data-original/devour"
+      featureRepoPath: "/feast-data-original/devour/feature_repo"
 #    git:
 #      url: https://github.com/ShumzZzZz/devour
 #      ref: 824d351

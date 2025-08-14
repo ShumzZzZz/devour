@@ -25,11 +25,11 @@ pipeline {
 apiVersion: v1
 kind: Pod
 spec:
-	containers:
-	- name: uv
-		image: ghcr.io/astral-sh/uv:0.8.9-python3.12-bookworm
-		command: ['sh','-c','cat']
-		tty: true
+    containers:
+    - name: uv
+        image: ghcr.io/astral-sh/uv:0.8.9-python3.12-bookworm
+        command: ['sh','-c','cat']
+        tty: true
 		"""
 				}
 			}
@@ -48,12 +48,12 @@ spec:
 				script {
 					try {
 					sh """
-						set -e
-						# Produce a readable report; also visible in console
-						uvx ruff check "${LINT_PATH}" | tee ruff-report.txt
+set -e
+# Produce a readable report; also visible in console
+uvx ruff check "${LINT_PATH}" | tee ruff-report.txt
 
-						# Optional: also enforce formatting without changing files
-						uvx ruff format "${LINT_PATH}" --check | tee -a ruff-report.txt
+# Optional: also enforce formatting without changing files
+uvx ruff format "${LINT_PATH}" --check | tee -a ruff-report.txt
 					"""
 					// Success
 					archiveArtifacts artifacts: 'ruff-report.txt', onlyIfSuccessful: true

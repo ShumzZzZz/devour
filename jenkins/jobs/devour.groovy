@@ -5,7 +5,7 @@ multibranchPipelineJob('Feast-CI-devour') {
       source {
         github {
           id('gh-mbp-devour')
-          repoOwner('ShumZzZz')
+          repoOwner('ShumzZzZz')
           repository('devour')
           credentialsId('githubapp-creds')
           configuredByUrl(false)

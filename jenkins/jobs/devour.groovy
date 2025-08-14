@@ -9,7 +9,7 @@ multibranchPipelineJob('Feast-CI-devour') {
           repository('devour')
           credentialsId('githubapp-creds')
           configuredByUrl(false)
-          repositoryUrl('https://github.com/ShuminzZzZz/devour')
+          repositoryUrl('https://github.com/ShumzZzZz/devour')
           traits {
             gitHubBranchDiscovery { strategyId(1) }
 

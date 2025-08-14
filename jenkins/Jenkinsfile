@@ -3,23 +3,74 @@ pipeline {
 	options {
 		buildDiscarder logRotator(
 			artifactDaysToKeepStr: '',
-            artifactNumToKeepStr: '5',
-            daysToKeepStr: '',
-            numToKeepStr: '5'
-        )
+			artifactNumToKeepStr: '5',
+			daysToKeepStr: '',
+			numToKeepStr: '5'
+				)
 		disableConcurrentBuilds()
-    }
-    stages {
+		}
+		stages {
 		stage('Notify') {
 			when { anyOf { branch 'main' ; changeRequest() } }
 			steps {
 				echo 'Push Received!'
 			}
 		}
-		stage('Test & Lint') {
-			when { changeRequest() }
+		stage('Lint (Ruff)') {
+		when { anyOf { branch 'main'; changeRequest() } }
+			agent {
+				kubernetes {
+					defaultContainer 'uv'
+					yaml """
+apiVersion: v1
+kind: Pod
+spec:
+	containers:
+	- name: uv
+		image: ghcr.io/astral-sh/uv:0.8.9-python3.12-bookworm
+		command: ['sh','-c','cat']
+		tty: true
+		"""
+				}
+			}
+			environment {
+				LINT_PATH = '.'
+				GITHUB_CONTEXT = 'lint/ruff'	 // this name is what you select in GitHub branch protection
+			}
 			steps {
-				echo 'PR Received!'
+				checkout scm
+
+				githubNotify context: env.GITHUB_CONTEXT,
+							 status: 'PENDING',
+							 description: 'Ruff lint running…',
+							 targetUrl: env.RUN_DISPLAY_URL
+
+				script {
+					try {
+					sh """
+						set -e
+						# Produce a readable report; also visible in console
+						uvx ruff check "${LINT_PATH}" | tee ruff-report.txt
+
+						# Optional: also enforce formatting without changing files
+						uvx ruff format "${LINT_PATH}" --check | tee -a ruff-report.txt
+					"""
+					// Success
+					archiveArtifacts artifacts: 'ruff-report.txt', onlyIfSuccessful: true
+					githubNotify context: env.GITHUB_CONTEXT,
+								 status: 'SUCCESS',
+								 description: 'Ruff clean ✅',
+								 targetUrl: env.RUN_DISPLAY_URL
+					} catch (err) {
+					// Save report even on failure, then mark the GitHub status as failure
+					archiveArtifacts artifacts: 'ruff-report.txt', onlyIfSuccessful: false
+					githubNotify context: env.GITHUB_CONTEXT,
+								 status: 'FAILURE',
+								 description: 'Ruff found issues ❌ (see report)',
+								 targetUrl: env.RUN_DISPLAY_URL
+					error "Ruff lint failed"
+					}
+				}
 			}
 		}
 	}

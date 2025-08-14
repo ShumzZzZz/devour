@@ -14,7 +14,7 @@ multibranchPipelineJob('Feast-CI-devour') {
             gitHubBranchDiscovery { strategyId(1) }
 
             headWildcardFilter {
-              includes('main')
+              includes('main PR-*')
               excludes('')
             }
 

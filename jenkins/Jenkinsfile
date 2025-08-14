@@ -1,0 +1,26 @@
+pipeline {
+	agent any
+	options {
+		buildDiscarder logRotator(
+			artifactDaysToKeepStr: '',
+            artifactNumToKeepStr: '5',
+            daysToKeepStr: '',
+            numToKeepStr: '5'
+        )
+		disableConcurrentBuilds()
+    }
+    stages {
+		stage('Notify') {
+			when { AnyOf { branch 'main' ; changeRequest() } }
+			steps {
+				echo 'Push Received!'
+			}
+		}
+		stage('Test & Lint') {
+			when { changeRequest() }
+			steps {
+				echo 'PR Received!'
+			}
+		}
+	}
+}

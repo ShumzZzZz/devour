@@ -11,7 +11,7 @@ pipeline {
     }
     stages {
 		stage('Notify') {
-			when { AnyOf { branch 'main' ; changeRequest() } }
+			when { anyOf { branch 'main' ; changeRequest() } }
 			steps {
 				echo 'Push Received!'
 			}

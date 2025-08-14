@@ -13,11 +13,10 @@ multibranchPipelineJob('Feast-CI-devour') {
 
             headWildcardFilter {
               includes('main')
-              excludes('*')
+              excludes('')
             }
 
             gitHubPullRequestDiscovery { strategyId(1) }
-            }
           }
         }
       }

@@ -8,6 +8,8 @@ multibranchPipelineJob('Feast-CI-devour') {
           repoOwner('ShuminzZzZz')
           repository('devour')
           credentialsId('githubapp-creds')
+          configuredByUrl(false)
+          repositoryUrl('https://github.com/ShuminzZzZz/devour')
           traits {
             gitHubBranchDiscovery { strategyId(1) }
 

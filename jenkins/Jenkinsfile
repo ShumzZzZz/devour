@@ -56,7 +56,7 @@ uvx ruff format "${LINT_PATH}" --check | tee -a ruff-report.txt
                         archiveArtifacts artifacts: 'ruff-report.txt', onlyIfSuccessful: true
                         publishChecks name: env.GITHUB_CONTEXT,
                                       title: 'Ruff',
-                                      summary: 'Ruff clean ✅',
+                                      summary: 'Ruff clean ',
                                       detailsURL: env.RUN_DISPLAY_URL,
                                       text: readFile('ruff-report.txt'),
                                       conclusion: 'SUCCESS',
@@ -66,7 +66,7 @@ uvx ruff format "${LINT_PATH}" --check | tee -a ruff-report.txt
                         archiveArtifacts artifacts: 'ruff-report.txt', onlyIfSuccessful: false
                         publishChecks name: env.GITHUB_CONTEXT,
                                       title: 'Ruff',
-                                      summary: 'Ruff found issues ❌ (see report)',
+                                      summary: 'Ruff found issues (see report)',
                                       detailsURL: env.RUN_DISPLAY_URL,
                                       text: fileExists('ruff-report.txt') ? readFile('ruff-report.txt') : '',
                                       conclusion: 'FAILURE',

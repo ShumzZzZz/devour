@@ -40,6 +40,9 @@ pipeline {
           // Run Ruff, always emit SARIF for rich PR annotations via Warnings NG
           int rc = sh(returnStatus: true, script: '''
 bash -eo pipefail <<'BASH'
+echo "PATH=$PATH"
+type -a uv || true
+ls -l /usr/local/bin || true
 uv tool run ruff check "${LINT_PATH}" | tee ruff-report.txt
 uv tool run ruff check "${LINT_PATH}" --output-format sarif --output ruff.sarif
 uv tool run ruff format "${LINT_PATH}" --check | tee -a ruff-report.txt

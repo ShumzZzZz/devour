@@ -1,4 +1,3 @@
-// Last reviewed: 2025-08 (Aug 2025)
 pipeline {
   agent any
 
@@ -10,12 +9,6 @@ pipeline {
   }
 
   stages {
-    // stage('Notify') {
-    //   when { anyOf { branch 'main'; changeRequest() } }
-    //   steps {
-    //     echo 'Push Received!'
-    //   }
-    // }
 
     stage('Lint / Ruff') {
       when { changeRequest() }
@@ -23,20 +16,20 @@ pipeline {
 
       environment {
         LINT_PATH = '.'
-        GITHUB_CONTEXT = 'lint/ruff' // used for GitHub Checks
+        GITHUB_CONTEXT = 'lint/ruff'
       }
 
       steps {
         checkout scm
 
         publishChecks name: env.GITHUB_CONTEXT,
-                     title: 'Ruff Lint',
-                     summary: 'Ruff lint started…',
-                     status: 'IN_PROGRESS'
+          title: 'Ruff Lint',
+          summary: 'Ruff lint started…',
+          status: 'IN_PROGRESS'
 
-  container(name: 'uv', shell: '/bin/bash') {
-    script {
-      int ruffCheckRc = sh(returnStatus: true, script: '''
+        container(name: 'uv', shell: '/bin/bash') {
+          script {
+            int ruffCheckRc = sh(returnStatus: true, script: '''
         bash -e -u -o pipefail -s <<'BASH'
         : > lint-report.txt
         : > ruff.sarif
@@ -44,30 +37,28 @@ pipeline {
         uv tool run ruff check "${LINT_PATH}" | tee lint-report.txt || rc=$?
         uv tool run ruff check "${LINT_PATH}" --output-format sarif --output ruff.sarif || true
         exit "$rc"
-BASH
-      ''')
-      recordIssues tools: [sarif(pattern: 'ruff.sarif')],
-                   publishAllIssues: true,
-                   skipPublishingChecks: true,
-                   checksAnnotationScope: 'ALL',
-                   enabledForFailure: true
-      archiveArtifacts artifacts: 'lint-report.txt, ruff.sarif', allowEmptyArchive: true
-      env.RUFF_CHECK_RC = ruffCheckRc.toString()
-    }
-  }
-}
-post {
-        always {
-          script {
-            def txt = fileExists('lint-report.txt') ? readFile('lint-report.txt') : ''
-            def rc  = (env.RUFF_CHECK_RC ?: '1') as Integer
-            publishChecks name: env.GITHUB_CONTEXT,
-                          title: 'Ruff Lint',
-                          summary: (rc == 0 ? 'Ruff clean ✅' : 'Ruff found issues ❌'),
-                          detailsURL: env.RUN_DISPLAY_URL,
-                          text: txt,
-                          conclusion: (rc == 0 ? 'SUCCESS' : 'FAILURE'),
-                          status: 'COMPLETED'
+BASH ''')
+              recordIssues tools : [sarif(pattern: 'ruff.sarif')],
+              publishAllIssues: true,
+              skipPublishingChecks: true,
+              checksAnnotationScope: 'ALL',
+              enabledForFailure: true archiveArtifacts artifacts: 'lint-report.txt, ruff.sarif', allowEmptyArchive: true env.RUFF_CHECK_RC = ruffCheckRc.toString()
+            }
+          }
+        }
+        post {
+          always {
+            script {
+              def txt = fileExists('lint-report.txt') ? readFile('lint-report.txt') : ''
+              def rc = (env.RUFF_CHECK_RC ? : '1') as Integer
+              publishChecks name: env.GITHUB_CONTEXT,
+                title: 'Ruff Lint',
+                summary: (rc == 0 ? 'Ruff clean ✅' : 'Ruff found issues ❌'),
+                detailsURL: env.RUN_DISPLAY_URL,
+                text: txt,
+                conclusion: (rc == 0 ? 'SUCCESS' : 'FAILURE'),
+                status: 'COMPLETED'
+            }
           }
         }
       }
@@ -79,45 +70,44 @@ post {
 
       environment {
         FORMAT_PATH = '.'
-        GITHUB_CONTEXT = 'format/ruff' // used for GitHub Checks
+        GITHUB_CONTEXT = 'format/ruff'
       }
 
       steps {
         checkout scm
 
         publishChecks name: env.GITHUB_CONTEXT,
-                     title: 'Ruff Format',
-                     summary: 'Ruff format started…',
-                     status: 'IN_PROGRESS'
+          title: 'Ruff Format',
+          summary: 'Ruff format started…',
+          status: 'IN_PROGRESS'
 
-  container(name: 'uv', shell: '/bin/bash') {
-    script {
-      int ruffFmtRc = sh(returnStatus: true, script: '''
+        container(name: 'uv', shell: '/bin/bash') {
+          script {
+            int ruffFmtRc = sh(returnStatus: true, script: '''
         bash -e -u -o pipefail -s <<'BASH'
         : > ruff-format-report.txt
         rc=0
         uv tool run ruff format "${FORMAT_PATH}" --check || rc=$?
         uv tool run ruff format "${FORMAT_PATH}" --diff | tee ruff-format-report.txt || true
         exit "$rc"
-BASH
-      ''')
-      archiveArtifacts artifacts: 'ruff-format-report.txt', allowEmptyArchive: true
-      env.RUFF_FORMAT_RC = ruffFmtRc.toString()
-    }
-  }
-}
-post {
-        always {
-          script {
-            def txt = fileExists('ruff-format-report.txt') ? readFile('ruff-format-report.txt') : ''
-            def rc  = (env.RUFF_FORMAT_RC ?: '1') as Integer
-            publishChecks name: env.GITHUB_CONTEXT,
-                          title: 'Ruff Format',
-                          summary: (rc == 0 ? 'Already formatted ✅' : 'Reformatting needed ❌'),
-                          detailsURL: env.RUN_DISPLAY_URL,
-                          text: txt,
-                          conclusion: (rc == 0 ? 'SUCCESS' : 'FAILURE'),
-                          status: 'COMPLETED'
+BASH ''')
+              archiveArtifacts artifacts : 'ruff-format-report.txt', allowEmptyArchive: true env.RUFF_FORMAT_RC = ruffFmtRc.toString()
+            }
+          }
+        }
+        post {
+          always {
+            script {
+              def txt = fileExists('ruff-format-report.txt') ? readFile('ruff-format-report.txt') : ''
+              def rc = (env.RUFF_FORMAT_RC ? : '1') as Integer
+              publishChecks name: env.GITHUB_CONTEXT,
+                title: 'Ruff Format',
+                summary: (rc == 0 ? 'Already formatted ✅' : 'Reformatting needed ❌'),
+                detailsURL: env.RUN_DISPLAY_URL,
+                text: txt,
+                conclusion: (rc == 0 ? 'SUCCESS' : 'FAILURE'),
+                status: 'COMPLETED'
+            }
           }
         }
       }
@@ -144,32 +134,31 @@ post {
               # Capture a patch of what changed (workspace only; no commit)
               git --no-pager diff > ruff-format-autofix.diff || true
               exit "$rc"
-BASH
-            ''')
-            archiveArtifacts artifacts: 'ruff-autofix-summary.txt, ruff-format-autofix.diff', allowEmptyArchive: true
-            env.RUFF_AUTOFIX_RC = autoFmtRc.toString()
+BASH ''')
+              archiveArtifacts artifacts : 'ruff-autofix-summary.txt, ruff-format-autofix.diff', allowEmptyArchive: true env.RUFF_AUTOFIX_RC = autoFmtRc.toString()
+            }
+          }
+        }
+      }
+      post {
+        always {
+          script {
+            def txt = fileExists('ruff-autofix-summary.txt') ? readFile('ruff-autofix-summary.txt') : ''
+            def rc = (env.RUFF_AUTOFIX_RC ? : '0') as Integer
+            publishChecks name: env.GITHUB_CONTEXT,
+              title: 'Ruff Format (auto-fix)',
+              summary: (rc == 0 ? 'Formatted (or already clean) ✅' : 'Formatter reported issues ⚠️'),
+              detailsURL: env.RUN_DISPLAY_URL,
+              text: txt,
+              conclusion: (rc == 0 ? 'SUCCESS' : 'NEUTRAL'),
+              status: 'COMPLETED'
           }
         }
       }
     }
-    post {
-        always {
-          script {
-            def txt = fileExists('ruff-autofix-summary.txt') ? readFile('ruff-autofix-summary.txt') : ''
-            def rc  = (env.RUFF_AUTOFIX_RC ?: '0') as Integer
-            publishChecks name: env.GITHUB_CONTEXT,
-                          title: 'Ruff Format (auto-fix)',
-                          summary: (rc == 0 ? 'Formatted (or already clean) ✅' : 'Formatter reported issues ⚠️'),
-                          detailsURL: env.RUN_DISPLAY_URL,
-                          text: txt,
-                          conclusion: (rc == 0 ? 'SUCCESS' : 'NEUTRAL'),
-                          status: 'COMPLETED'
-          }
-        }
-      }
 
     stage('Type Check / Pyright') {
-      when { expression { false } }  //changeRequest()
+      when { expression { false } } //changeRequest()
       agent { label 'uv' }
       environment {
         TYPECHECK_PATH = '.'
@@ -177,9 +166,9 @@ BASH
       }
       steps {
         publishChecks name: env.GITHUB_CONTEXT,
-                      title: 'Pyright',
-                      summary: 'Static type check started…',
-                      status: 'IN_PROGRESS'
+          title: 'Pyright',
+          summary: 'Static type check started…',
+          status: 'IN_PROGRESS'
         container(name: 'uv', shell: '/bin/bash') {
           script {
             int pyrightRc = sh(returnStatus: true, script: '''
@@ -236,34 +225,31 @@ if p.exists():
 PY
 
               exit "$rc"
-BASH
-            ''')
+BASH''')
 
-            // Publish SARIF and artifacts
-            recordIssues tools: [sarif(pattern: 'pyright.sarif')], publishAllIssues: true, skipPublishingChecks: true, enabledForFailure: true
-            archiveArtifacts artifacts: 'pyright-report.txt, pyright.json, pyright.sarif', allowEmptyArchive: true
-            env.PYRIGHT_RC = pyrightRc.toString()
+              recordIssues tools: [sarif(pattern: 'pyright.sarif')], publishAllIssues: true, skipPublishingChecks: true, enabledForFailure: true archiveArtifacts artifacts: 'pyright-report.txt, pyright.json, pyright.sarif', allowEmptyArchive: true env.PYRIGHT_RC = pyrightRc.toString()
+            }
+          }
+        }
+      }
+      post {
+        always {
+          script {
+            def txt = fileExists('pyright-report.txt') ? readFile('pyright-report.txt') : ''
+            def rc = (env.PYRIGHT_RC ? : '1') as Integer
+            publishChecks name: env.GITHUB_CONTEXT,
+              title: 'Pyright',
+              summary: (rc == 0 ? 'No type errors ✅' : 'Type issues detected ❌'),
+              detailsURL: env.RUN_DISPLAY_URL,
+              text: txt,
+              conclusion: (rc == 0 ? 'SUCCESS' : 'FAILURE'),
+              status: 'COMPLETED'
           }
         }
       }
     }
-post {
-       always {
-         script {
-           def txt = fileExists('pyright-report.txt') ? readFile('pyright-report.txt') : ''
-           def rc  = (env.PYRIGHT_RC ?: '1') as Integer
-           publishChecks name: env.GITHUB_CONTEXT,
-                         title: 'Pyright',
-                         summary: (rc == 0 ? 'No type errors ✅' : 'Type issues detected ❌'),
-                         detailsURL: env.RUN_DISPLAY_URL,
-                         text: txt,
-                         conclusion: (rc == 0 ? 'SUCCESS' : 'FAILURE'),
-                         status: 'COMPLETED'
-         }
-       }
-     }
     stage('Unit Tests / PyTest') {
-      when { expression { false } }  //changeRequest()
+      when { expression { false } } //changeRequest()
       agent { label 'uv' }
 
       environment {
@@ -275,56 +261,53 @@ post {
         checkout scm
 
         publishChecks name: env.GITHUB_CONTEXT,
-                     title: 'PyTest',
-                     summary: 'Unit tests started…',
-                     status: 'IN_PROGRESS'
+          title: 'PyTest',
+          summary: 'Unit tests started…',
+          status: 'IN_PROGRESS'
 
-  container(name: 'uv', shell: '/bin/bash') {
-    script {
-      int pytestRc = sh(returnStatus: true, script: '''
+        container(name: 'uv', shell: '/bin/bash') {
+          script {
+            int pytestRc = sh(returnStatus: true, script: '''
         bash -e -u -o pipefail -s <<'BASH'
         : > pytest-report.txt
         rc=0
         uv tool run pytest "${TEST_PATH}" --maxfail=1 --disable-warnings --junitxml=pytest.xml | tee pytest-report.txt || rc=$?
         exit "$rc"
-BASH
-      ''')
-      junit allowEmptyResults: true, testResults: 'pytest.xml'
-      archiveArtifacts artifacts: 'pytest-report.txt, pytest.xml', allowEmptyArchive: true
-      env.PYTEST_RC = pytestRc.toString()
-    }
-  }
-}
-    }
-post {
-      always {
-        script {
-          def txt = fileExists('pytest-report.txt') ? readFile('pytest-report.txt') : ''
-          def rc  = (env.PYTEST_RC ?: '1') as Integer
-          publishChecks name: env.GITHUB_CONTEXT,
-                        title: 'PyTest',
-                        summary: (rc == 0 ? 'All tests passed ✅' : 'Test failures ❌'),
-                        detailsURL: env.RUN_DISPLAY_URL,
-                        text: txt,
-                        conclusion: (rc == 0 ? 'SUCCESS' : 'FAILURE'),
-                        status: 'COMPLETED'
+BASH ''')
+              junit allowEmptyResults : true, testResults: 'pytest.xml'
+              archiveArtifacts artifacts: 'pytest-report.txt, pytest.xml', allowEmptyArchive: true env.PYTEST_RC = pytestRc.toString()
+            }
+          }
+        }
+      }
+      post {
+        always {
+          script {
+            def txt = fileExists('pytest-report.txt') ? readFile('pytest-report.txt') : ''
+            def rc = (env.PYTEST_RC ? : '1') as Integer
+            publishChecks name: env.GITHUB_CONTEXT,
+              title: 'PyTest',
+              summary: (rc == 0 ? 'All tests passed ✅' : 'Test failures ❌'),
+              detailsURL: env.RUN_DISPLAY_URL,
+              text: txt,
+              conclusion: (rc == 0 ? 'SUCCESS' : 'FAILURE'),
+              status: 'COMPLETED'
+          }
         }
       }
     }
 
-
-
     stage('Quality / pre-commit') {
-      when { expression { false } }  //changeRequest()
+      when { expression { false } } //changeRequest()
       agent { label 'uv' }
       environment {
         GITHUB_CONTEXT = 'quality/pre-commit'
       }
       steps {
         publishChecks name: env.GITHUB_CONTEXT,
-                      title: 'pre-commit',
-                      summary: 'pre-commit hooks started…',
-                      status: 'IN_PROGRESS'
+          title: 'pre-commit',
+          summary: 'pre-commit hooks started…',
+          status: 'IN_PROGRESS'
         container(name: 'uv', shell: '/bin/bash') {
           script {
             int preCommitRc = sh(returnStatus: true, script: '''
@@ -345,33 +328,31 @@ repos:
         additional_dependencies: []
 SNIP
               exit "$rc"
-BASH
-            ''')
+BASH ''')
 
-            archiveArtifacts artifacts: 'pre-commit-report.txt, pre-commit-pyright-snippet.txt', allowEmptyArchive: true
-            env.PRECOMMIT_RC = preCommitRc.toString()
+              archiveArtifacts artifacts: 'pre-commit-report.txt, pre-commit-pyright-snippet.txt', allowEmptyArchive: true env.PRECOMMIT_RC = preCommitRc.toString()
+            }
+          }
+        }
+      }
+      post {
+        always {
+          script {
+            def txt = fileExists('pre-commit-report.txt') ? readFile('pre-commit-report.txt') : ''
+            def rc = (env.PRECOMMIT_RC ? : '1') as Integer
+            publishChecks name: env.GITHUB_CONTEXT,
+              title: 'pre-commit',
+              summary: (rc == 0 ? 'All hooks passed ✅' : 'Hook failures ❌'),
+              detailsURL: env.RUN_DISPLAY_URL,
+              text: txt,
+              conclusion: (rc == 0 ? 'SUCCESS' : 'FAILURE'),
+              status: 'COMPLETED'
           }
         }
       }
     }
-    post {
-   always {
-     script {
-       def txt = fileExists('pre-commit-report.txt') ? readFile('pre-commit-report.txt') : ''
-       def rc  = (env.PRECOMMIT_RC ?: '1') as Integer
-       publishChecks name: env.GITHUB_CONTEXT,
-                     title: 'pre-commit',
-                     summary: (rc == 0 ? 'All hooks passed ✅' : 'Hook failures ❌'),
-                     detailsURL: env.RUN_DISPLAY_URL,
-                     text: txt,
-                     conclusion: (rc == 0 ? 'SUCCESS' : 'FAILURE'),
-                     status: 'COMPLETED'
-     }
-   }
- }
-
     stage('Docker Build & Push') {
-      when { expression { false } }  // when { branch 'main' }
+      when { expression { false } } // branch 'main'
       agent { label 'uv' }
 
       environment {
@@ -404,29 +385,28 @@ BASH
               IMAGE_TAG="${IMAGE_TAG:-${GIT_COMMIT:0:7}}"
               docker push "$DOCKERHUB_REPO:$IMAGE_TAG"
               echo "$DOCKERHUB_REPO:$IMAGE_TAG" | tee image-tag.txt
-BASH
-            '''
+BASH'''
+            }
+            archiveArtifacts artifacts: 'image-tag.txt', allowEmptyArchive: true env.DOCKER_RC = dockerRc.toString()
           }
-          archiveArtifacts artifacts: 'image-tag.txt', allowEmptyArchive: true
-          env.DOCKER_RC = dockerRc.toString()
+        }
+      }
+      post {
+        always {
+          script {
+            def txt = fileExists('image-tag.txt') ? ("Pushed " + readFile('image-tag.txt')) : (fileExists('docker-build.txt') ? readFile('docker-build.txt') : '')
+            def rc = (env.DOCKER_RC ? : '0') as Integer
+            publishChecks name: 'image/build',
+              title: 'Docker Image',
+              summary: 'Build & push completed',
+              detailsURL: env.RUN_DISPLAY_URL,
+              text: txt,
+              conclusion: (rc == 0 ? 'SUCCESS' : 'FAILURE'),
+              status: 'COMPLETED'
+          }
         }
       }
     }
-    post {
-       always {
-         script {
-           def txt = fileExists('image-tag.txt') ? ("Pushed " + readFile('image-tag.txt')) : (fileExists('docker-build.txt') ? readFile('docker-build.txt') : '')
-           def rc  = (env.DOCKER_RC ?: '0') as Integer
-           publishChecks name: 'image/build',
-                         title: 'Docker Image',
-                         summary: 'Build & push completed',
-                         detailsURL: env.RUN_DISPLAY_URL,
-                         text: txt,
-                         conclusion: (rc == 0 ? 'SUCCESS' : 'FAILURE'),
-                         status: 'COMPLETED'
-         }
-       }
-     }
 
     stage('CI Gate') {
       steps {

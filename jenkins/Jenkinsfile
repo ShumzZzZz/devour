@@ -38,7 +38,7 @@ pipeline {
 
   container(name: 'uv', shell: '/bin/bash') {
     script {
-      int rc = sh(returnStatus: true, script: '''
+      int rc = sh(returnStatus: true, shell: '/bin/bash', script: '''
         set -euo pipefail
         # (optional) quick visibility
         echo "INSIDE CONTAINER: $(cat /etc/os-release | sed -n '1p')"

@@ -38,7 +38,7 @@ pipeline {
 
   container(name: 'uv', shell: '/bin/bash') {
     script {
-      int rc = sh(returnStatus: true, script: """
+      int rc = sh(returnStatus: true, script: '''
         set -euo pipefail
         # (optional) quick visibility
         echo "INSIDE CONTAINER: $(cat /etc/os-release | sed -n '1p')"
@@ -48,7 +48,7 @@ pipeline {
         uv tool run ruff check "${LINT_PATH}" | tee ruff-report.txt
         uv tool run ruff check "${LINT_PATH}" --output-format sarif --output ruff.sarif
         uv tool run ruff format "${LINT_PATH}" --check | tee -a ruff-report.txt
-      """)
+      ''' )
       recordIssues tools: [sarif(pattern: 'ruff.sarif')],
                    publishAllIssues: true,
                    skipPublishingChecks: true,

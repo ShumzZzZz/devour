@@ -53,7 +53,7 @@ metadata:
 type: Opaque
 stringData:
   POSTGRES_PASSWORD: "pgfeastpassword"
-  PGADMIN_DEFAULT_PASSWORD: "pgadminpassword"
+#  PGADMIN_DEFAULT_PASSWORD: "pgadminpassword"
 ---
 # ConfigMap for non-sensitive environment variables
 apiVersion: v1
@@ -64,7 +64,7 @@ metadata:
 data:
   POSTGRES_USER: "feastuser"
   POSTGRES_DB: "feastdb"
-  PGADMIN_DEFAULT_EMAIL: "admin@example.com"
+#  PGADMIN_DEFAULT_EMAIL: "admin@example.com"
 ---
 # PersistentVolumeClaim for PostgreSQL data
 apiVersion: v1
@@ -80,19 +80,19 @@ spec:
     requests:
       storage: 5Gi
 ---
-# PersistentVolumeClaim for Redis data
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: redis-pvc
-  namespace: feast
-spec:
-  storageClassName: aws-ebs-sc
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 10Gi
+## PersistentVolumeClaim for Redis data
+#apiVersion: v1
+#kind: PersistentVolumeClaim
+#metadata:
+#  name: redis-pvc
+#  namespace: feast
+#spec:
+#  storageClassName: aws-ebs-sc
+#  accessModes:
+#    - ReadWriteOnce
+#  resources:
+#    requests:
+#      storage: 10Gi
 ---
 # Deployment for PostgreSQL
 apiVersion: apps/v1
@@ -110,13 +110,6 @@ spec:
       labels:
         app: postgres
     spec:
-      nodeSelector: 
-        dedicated: featurestore
-      tolerations: 
-        - key: dedicated
-          operator: Equal
-          value: featurestore
-          effect: NoExecute
       containers:
         - name: postgres
           image: postgres:latest
@@ -146,12 +139,12 @@ spec:
           resources:
             requests:
 #              ephemeral-storage: "100Mi"
-              cpu: "600m"
-              memory: "512Mi"
+              cpu: "150m"
+              memory: "128Mi"
             limits:
 #              ephemeral-storage: "200Mi"
-              cpu: "1000m"
-              memory: "1Gi"
+              cpu: "300m"
+              memory: "256Mi"
       volumes:
         - name: postgres-storage
           persistentVolumeClaim:
@@ -174,141 +167,127 @@ spec:
       port: 5432
       targetPort: 5432
   type: ClusterIP
----
-# Deployment for Redis
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: redis-feast
-  namespace: feast
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: redis
-  template:
-    metadata:
-      labels:
-        app: redis
-    spec:
-      nodeSelector: 
-        dedicated: featurestore
-      tolerations: 
-        - key: dedicated
-          operator: Equal
-          value: featurestore
-          effect: NoExecute
-      containers:
-        - name: redis
-          image: redis/redis-stack:latest
-          ports:
-            - containerPort: 6379
-            - containerPort: 8001
-          volumeMounts:
-            - name: redis-storage
-              mountPath: /data
-          env:
-            - name: ALLOW_EMPTY_PASSWORD
-              value: "yes"
-          resources:
-            requests:
-#              ephemeral-storage: "100Mi"
-              cpu: "1"
-              memory: "2Gi"
-            limits:
-#              ephemeral-storage: "200Mi"
-              cpu: "3"
-              memory: "8Gi"
-      volumes:
-        - name: redis-storage
-          persistentVolumeClaim:
-            claimName: redis-pvc
----
-# Service for Redis
-apiVersion: v1
-kind: Service
-metadata:
-  name: redis-service
-  namespace: feast
-  labels:
-    app: redis
-spec:
-  selector:
-    app: redis
-  ports:
-    - name: redis-port
-      protocol: TCP
-      port: 6379
-      targetPort: 6379
-    - name: redisinsight-port
-      protocol: TCP
-      port: 8001
-      targetPort: 8001
-  type: ClusterIP
----
-# Deployment for pgAdmin
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: pgadmin
-  namespace: feast
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: pgadmin
-  template:
-    metadata:
-      labels:
-        app: pgadmin
-    spec:
-      nodeSelector: 
-        dedicated: featurestore
-      tolerations: 
-        - key: dedicated
-          operator: Equal
-          value: featurestore
-          effect: NoExecute
-      containers:
-        - name: pgadmin
-          image: dpage/pgadmin4
-          ports:
-            - containerPort: 80
-          env:
-            - name: PGADMIN_DEFAULT_EMAIL
-              valueFrom:
-                configMapKeyRef:
-                  name: feast-config
-                  key: PGADMIN_DEFAULT_EMAIL
-            - name: PGADMIN_DEFAULT_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: feast-secret
-                  key: PGADMIN_DEFAULT_PASSWORD
-          resources:
-            requests:
-#              ephemeral-storage: "100Mi"
-              cpu: "150m"
-              memory: "512Mi"
-            limits:
-#              ephemeral-storage: "200Mi"
-              cpu: "500m"
-              memory: "1Gi"
----
-# Service for pgAdmin
-apiVersion: v1
-kind: Service
-metadata:
-  name: pgadmin-service
-  namespace: feast
-  labels:
-    app: pgadmin
-spec:
-  selector:
-    app: pgadmin
-  ports:
-    - name: pgadmin
-      protocol: TCP
-      port: 5050
-      targetPort: 80
-  type: ClusterIP
+#---
+## Deployment for Redis
+#apiVersion: apps/v1
+#kind: Deployment
+#metadata:
+#  name: redis-feast
+#  namespace: feast
+#spec:
+#  replicas: 1
+#  selector:
+#    matchLabels:
+#      app: redis
+#  template:
+#    metadata:
+#      labels:
+#        app: redis
+#    spec:
+#      containers:
+#        - name: redis
+#          image: redis/redis-stack:latest
+#          ports:
+#            - containerPort: 6379
+#            - containerPort: 8001
+#          volumeMounts:
+#            - name: redis-storage
+#              mountPath: /data
+#          env:
+#            - name: ALLOW_EMPTY_PASSWORD
+#              value: "yes"
+#          resources:
+#            requests:
+##              ephemeral-storage: "100Mi"
+#              cpu: "1"
+#              memory: "2Gi"
+#            limits:
+##              ephemeral-storage: "200Mi"
+#              cpu: "3"
+#              memory: "8Gi"
+#      volumes:
+#        - name: redis-storage
+#          persistentVolumeClaim:
+#            claimName: redis-pvc
+#---
+## Service for Redis
+#apiVersion: v1
+#kind: Service
+#metadata:
+#  name: redis-service
+#  namespace: feast
+#  labels:
+#    app: redis
+#spec:
+#  selector:
+#    app: redis
+#  ports:
+#    - name: redis-port
+#      protocol: TCP
+#      port: 6379
+#      targetPort: 6379
+#    - name: redisinsight-port
+#      protocol: TCP
+#      port: 8001
+#      targetPort: 8001
+#  type: ClusterIP
+#---
+## Deployment for pgAdmin
+#apiVersion: apps/v1
+#kind: Deployment
+#metadata:
+#  name: pgadmin
+#  namespace: feast
+#spec:
+#  replicas: 1
+#  selector:
+#    matchLabels:
+#      app: pgadmin
+#  template:
+#    metadata:
+#      labels:
+#        app: pgadmin
+#    spec:
+#      containers:
+#        - name: pgadmin
+#          image: dpage/pgadmin4
+#          ports:
+#            - containerPort: 80
+#          env:
+#            - name: PGADMIN_DEFAULT_EMAIL
+#              valueFrom:
+#                configMapKeyRef:
+#                  name: feast-config
+#                  key: PGADMIN_DEFAULT_EMAIL
+#            - name: PGADMIN_DEFAULT_PASSWORD
+#              valueFrom:
+#                secretKeyRef:
+#                  name: feast-secret
+#                  key: PGADMIN_DEFAULT_PASSWORD
+#          resources:
+#            requests:
+##              ephemeral-storage: "100Mi"
+#              cpu: "150m"
+#              memory: "512Mi"
+#            limits:
+##              ephemeral-storage: "200Mi"
+#              cpu: "500m"
+#              memory: "1Gi"
+#---
+## Service for pgAdmin
+#apiVersion: v1
+#kind: Service
+#metadata:
+#  name: pgadmin-service
+#  namespace: feast
+#  labels:
+#    app: pgadmin
+#spec:
+#  selector:
+#    app: pgadmin
+#  ports:
+#    - name: pgadmin
+#      protocol: TCP
+#      port: 5050
+#      targetPort: 80
+#  type: ClusterIP

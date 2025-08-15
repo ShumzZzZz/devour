@@ -42,14 +42,15 @@ pipeline {
         script {
           // Run Ruff, always emit SARIF for rich PR annotations via Warnings NG
           int rc = sh(returnStatus: true, script: '''
-            set -euo pipefail
-            # Human-readable report in console + file
-            uvx ruff check "${LINT_PATH}" | tee ruff-report.txt
-            # Emit SARIF for GitHub Checks annotations
-            uvx ruff check "${LINT_PATH}" --output-format sarif --output ruff.sarif
-            # Enforce formatting without modifying files; append to report
-            uvx ruff format "${LINT_PATH}" --check | tee -a ruff-report.txt
-          ''')
+#!/usr/bin/env bash
+set -euo pipefail
+# Human-readable report in console + file
+uvx ruff check "${LINT_PATH}" | tee ruff-report.txt
+# Emit SARIF for GitHub Checks annotations
+uvx ruff check "${LINT_PATH}" --output-format sarif --output ruff.sarif
+# Enforce formatting without modifying files; append to report
+uvx ruff format "${LINT_PATH}" --check | tee -a ruff-report.txt
+''')
 
           // Publish structured annotations to GitHub through Checks API (via Warnings NG)
           recordIssues tools: [sarif(pattern: 'ruff.sarif')],

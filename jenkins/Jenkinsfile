@@ -18,21 +18,7 @@ pipeline {
 		}
 		stage('Lint (Ruff)') {
 		when { anyOf { branch 'main'; changeRequest() } }
-			agent {
-				kubernetes {
-					defaultContainer 'uv'
-					yaml """
-apiVersion: v1
-kind: Pod
-spec:
-  containers:
-  - name: uv
-    image: ghcr.io/astral-sh/uv:0.8.9-python3.12-bookworm
-    command: ['sh','-c','cat']
-    tty: true
-"""
-				}
-			}
+			agent { label: 'uv' }
 			environment {
 				LINT_PATH = '.'
 				GITHUB_CONTEXT = 'lint/ruff'	 // this name is what you select in GitHub branch protection

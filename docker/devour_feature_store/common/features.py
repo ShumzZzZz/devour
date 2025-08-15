@@ -3,8 +3,7 @@ from feast import (
 	FeatureView,
 	Field,
 )
-from feast.types import Float32, Int64, String
-from feast.on_demand_feature_view import on_demand_feature_view
+from feast.types import Float32, String
 
 from common.data_sources import *
 from common.entities import *

@@ -18,7 +18,7 @@ pipeline {
 		}
 		stage('Lint (Ruff)') {
 		when { anyOf { branch 'main'; changeRequest() } }
-			agent { label: 'uv' }
+			agent { label 'uv' }
 			environment {
 				LINT_PATH = '.'
 				GITHUB_CONTEXT = 'lint/ruff'	 // this name is what you select in GitHub branch protection

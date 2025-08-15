@@ -36,43 +36,39 @@ pipeline {
                      summary: 'Ruff lint started…',
                      status: 'IN_PROGRESS'
 
-        script {
-          // Run Ruff, always emit SARIF for rich PR annotations via Warnings NG
-          int rc = sh(returnStatus: true, script: '''
-bash -eo pipefail <<'BASH'
-echo "PATH=$PATH"
-type -a uv || true
-ls -l /usr/local/bin || true
-uv tool run ruff check "${LINT_PATH}" | tee ruff-report.txt
-uv tool run ruff check "${LINT_PATH}" --output-format sarif --output ruff.sarif
-uv tool run ruff format "${LINT_PATH}" --check | tee -a ruff-report.txt
-BASH
-''')
+  container(name: 'uv', shell: '/bin/bash') {
+    script {
+      int rc = sh(returnStatus: true, script: """
+        set -euo pipefail
+        # (optional) quick visibility
+        echo "INSIDE CONTAINER: $(cat /etc/os-release | sed -n '1p')"
+        echo "PATH=$PATH"
+        command -v uv || true
 
-          // Publish structured annotations to GitHub through Checks API (via Warnings NG)
-          recordIssues tools: [sarif(pattern: 'ruff.sarif')],
-                       publishAllIssues: true,
-                       skipPublishingChecks: true,
-                       checksAnnotationScope: 'ALL',
-                       enabledForFailure: true
+        uv tool run ruff check "${LINT_PATH}" | tee ruff-report.txt
+        uv tool run ruff check "${LINT_PATH}" --output-format sarif --output ruff.sarif
+        uv tool run ruff format "${LINT_PATH}" --check | tee -a ruff-report.txt
+      """)
+      recordIssues tools: [sarif(pattern: 'ruff.sarif')],
+                   publishAllIssues: true,
+                   skipPublishingChecks: true,
+                   checksAnnotationScope: 'ALL',
+                   enabledForFailure: true
 
-          // Keep artifacts available for deeper debugging
-          archiveArtifacts artifacts: 'ruff-report.txt, ruff.sarif', allowEmptyArchive: true
+      archiveArtifacts artifacts: 'ruff-report.txt, ruff.sarif', allowEmptyArchive: true
 
-          // Complete the check with SUCCESS/FAILURE and include the report text
-          publishChecks name: env.GITHUB_CONTEXT,
-                        title: 'Ruff',
-                        summary: (rc == 0 ? 'Ruff clean ✅' : 'Ruff found issues ❌'),
-                        detailsURL: env.RUN_DISPLAY_URL,
-                        text: fileExists('ruff-report.txt') ? readFile('ruff-report.txt') : '',
-                        conclusion: (rc == 0 ? 'SUCCESS' : 'FAILURE'),
-                        status: 'COMPLETED'
+      publishChecks name: env.GITHUB_CONTEXT,
+                    title: 'Ruff',
+                    summary: (rc == 0 ? 'Ruff clean ✅' : 'Ruff found issues ❌'),
+                    detailsURL: env.RUN_DISPLAY_URL,
+                    text: fileExists('ruff-report.txt') ? readFile('ruff-report.txt') : '',
+                    conclusion: (rc == 0 ? 'SUCCESS' : 'FAILURE'),
+                    status: 'COMPLETED'
 
-          if (rc != 0) {
-            error 'Ruff lint failed'
-          }
-        }
-      }
+      if (rc != 0) { error 'Ruff lint failed' }
+    }
+  }
+}
     }
   }
 }

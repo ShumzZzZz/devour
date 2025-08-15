@@ -15,12 +15,7 @@ pipeline {
     // }
 
     stage('Lint / Ruff') {
-      when {
-        anyOf {
-          branch 'main'
-          changeRequest()
-        }
-      }
+      when { changeRequest() }
       agent { label 'uv' }
 
       environment {
@@ -32,22 +27,20 @@ pipeline {
         checkout scm
 
         publishChecks name: env.GITHUB_CONTEXT,
-                     title: 'Ruff',
+                     title: 'Ruff Lint',
                      summary: 'Ruff lint started…',
                      status: 'IN_PROGRESS'
 
   container(name: 'uv', shell: '/bin/bash') {
     script {
-      int rc = sh(returnStatus: true, script: '''
+      int ruffCheckRc = sh(returnStatus: true, script: '''
         bash -e -u -o pipefail -s <<'BASH'
-        # (optional) quick visibility
-        echo "INSIDE CONTAINER: $(head -n1 /etc/os-release)"
-        echo "PATH=$PATH"
-        command -v uv || true
-
-        uv tool run ruff check "${LINT_PATH}" | tee ruff-report.txt
-        uv tool run ruff check "${LINT_PATH}" --output-format sarif --output ruff.sarif
-        uv tool run ruff format "${LINT_PATH}" --check | tee -a ruff-report.txt
+        : > lint-report.txt
+        : > ruff.sarif
+        rc=0
+        uv tool run ruff check "${LINT_PATH}" | tee lint-report.txt || rc=$?
+        uv tool run ruff check "${LINT_PATH}" --output-format sarif --output ruff.sarif || true
+        exit "$rc"
 BASH
       ''')
       recordIssues tools: [sarif(pattern: 'ruff.sarif')],
@@ -55,21 +48,361 @@ BASH
                    skipPublishingChecks: true,
                    checksAnnotationScope: 'ALL',
                    enabledForFailure: true
-
-      archiveArtifacts artifacts: 'ruff-report.txt, ruff.sarif', allowEmptyArchive: true
-
+      archiveArtifacts artifacts: 'lint-report.txt, ruff.sarif', allowEmptyArchive: true
       publishChecks name: env.GITHUB_CONTEXT,
-                    title: 'Ruff',
-                    summary: (rc == 0 ? 'Ruff clean ✅' : 'Ruff found issues ❌'),
+                    title: 'Ruff Lint',
+                    summary: (ruffCheckRc == 0 ? 'Ruff clean ✅' : 'Ruff found issues ❌'),
                     detailsURL: env.RUN_DISPLAY_URL,
-                    text: fileExists('ruff-report.txt') ? readFile('ruff-report.txt') : '',
-                    conclusion: (rc == 0 ? 'SUCCESS' : 'FAILURE'),
+                    text: fileExists('lint-report.txt') ? readFile('lint-report.txt') : '',
+                    conclusion: (ruffCheckRc == 0 ? 'SUCCESS' : 'FAILURE'),
                     status: 'COMPLETED'
-
-      if (rc != 0) { error 'Ruff lint failed' }
+      env.RUFF_CHECK_RC = ruffCheckRc.toString()
     }
   }
 }
     }
+
+    stage('Format / Ruff') {
+      when { changeRequest() }
+      agent { label 'uv' }
+
+      environment {
+        FORMAT_PATH = '.'
+        GITHUB_CONTEXT = 'format/ruff' // used for GitHub Checks
+      }
+
+      steps {
+        checkout scm
+
+        publishChecks name: env.GITHUB_CONTEXT,
+                     title: 'Ruff Format',
+                     summary: 'Ruff format started…',
+                     status: 'IN_PROGRESS'
+
+  container(name: 'uv', shell: '/bin/bash') {
+    script {
+      int ruffFmtRc = sh(returnStatus: true, script: '''
+        bash -e -u -o pipefail -s <<'BASH'
+        : > ruff-format-report.txt
+        rc=0
+        uv tool run ruff format "${FORMAT_PATH}" --check || rc=$?
+        uv tool run ruff format "${FORMAT_PATH}" --diff | tee ruff-format-report.txt || true
+        exit "$rc"
+BASH
+      ''')
+      archiveArtifacts artifacts: 'ruff-format-report.txt', allowEmptyArchive: true
+      publishChecks name: env.GITHUB_CONTEXT,
+                    title: 'Ruff Format',
+                    summary: (ruffFmtRc == 0 ? 'Already formatted ✅' : 'Reformatting needed ❌'),
+                    detailsURL: env.RUN_DISPLAY_URL,
+                    text: fileExists('ruff-format-report.txt') ? readFile('ruff-format-report.txt') : '',
+                    conclusion: (ruffFmtRc == 0 ? 'SUCCESS' : 'FAILURE'),
+                    status: 'COMPLETED'
+      env.RUFF_FORMAT_RC = ruffFmtRc.toString()
+    }
+  }
+}
+    }
+
+    stage('Format / Ruff (Main Auto-fix)') {
+      when { branch 'main' }
+      agent { label 'uv' }
+      environment {
+        FORMAT_PATH = '.'
+        GITHUB_CONTEXT = 'format/ruff-autofix'
+      }
+      steps {
+        publishChecks name: env.GITHUB_CONTEXT, title: 'Ruff Format (auto-fix)', summary: 'Auto-formatting on main…', status: 'IN_PROGRESS'
+        container(name: 'uv', shell: '/bin/bash') {
+          script {
+            int autoFmtRc = sh(returnStatus: true, script: '''
+              bash -e -u -o pipefail -s <<'BASH'
+              : > ruff-autofix-summary.txt
+              : > ruff-format-autofix.diff
+              rc=0
+              # Run formatter to apply fixes
+              uv tool run ruff format "${FORMAT_PATH}" | tee -a ruff-autofix-summary.txt || rc=$?
+              # Capture a patch of what changed (workspace only; no commit)
+              git --no-pager diff > ruff-format-autofix.diff || true
+              exit "$rc"
+BASH
+            ''')
+            archiveArtifacts artifacts: 'ruff-autofix-summary.txt, ruff-format-autofix.diff', allowEmptyArchive: true
+            publishChecks name: env.GITHUB_CONTEXT,
+                          title: 'Ruff Format (auto-fix)',
+                          summary: (autoFmtRc == 0 ? 'Formatted (or already clean) ✅' : 'Formatter reported issues ⚠️'),
+                          detailsURL: env.RUN_DISPLAY_URL,
+                          text: fileExists('ruff-autofix-summary.txt') ? readFile('ruff-autofix-summary.txt') : '',
+                          conclusion: (autoFmtRc == 0 ? 'SUCCESS' : 'NEUTRAL'),
+                          status: 'COMPLETED'
+            env.RUFF_AUTOFIX_RC = autoFmtRc.toString()
+          }
+        }
+      }
+    }
+
+    stage('Type Check / Pyright') {
+      when { changeRequest() }
+      agent { label 'uv' }
+      environment {
+        TYPECHECK_PATH = '.'
+        GITHUB_CONTEXT = 'type/pyright'
+      }
+      steps {
+        publishChecks name: env.GITHUB_CONTEXT,
+                      title: 'Pyright',
+                      summary: 'Static type check started…',
+                      status: 'IN_PROGRESS'
+        container(name: 'uv', shell: '/bin/bash') {
+          script {
+            int pyrightRc = sh(returnStatus: true, script: '''
+              bash -e -u -o pipefail -s <<'BASH'
+              : > pyright-report.txt
+              : > pyright.json
+              : > pyright.sarif
+              rc=0
+              # Run pyright with JSON output for conversion
+              uv tool run pyright ${TYPECHECK_PATH} --warnings --outputjson | tee pyright.json >/dev/null || rc=$?
+
+              # Also produce human-readable output
+              uv tool run pyright ${TYPECHECK_PATH} --warnings | tee pyright-report.txt || true
+
+              # Convert pyright.json -> pyright.sarif (minimal SARIF 2.1.0)
+              python3 - <<'PY'
+import json, sys, time
+from pathlib import Path
+j = {}
+p = Path('pyright.json')
+if p.exists():
+    j = json.loads(p.read_text())
+    results = []
+    diags = j.get('generalDiagnostics', [])
+    for d in diags:
+        sev = d.get('severity', 'error')
+        level = {'error':'error','warning':'warning','information':'note'}.get(sev,'warning')
+        msg = d.get('message','')
+        file = d.get('file','')
+        r = d.get('range',{})
+        sl = (r.get('start',{}) or {}).get('line',0)+1
+        sc = (r.get('start',{}) or {}).get('character',0)+1
+        el = (r.get('end',{}) or {}).get('line',0)+1
+        ec = (r.get('end',{}) or {}).get('character',0)+1
+        results.append({
+            "level": level,
+            "message": {"text": msg},
+            "locations": [{
+                "physicalLocation": {
+                    "artifactLocation": {"uri": file},
+                    "region": {"startLine": sl, "startColumn": sc, "endLine": el, "endColumn": ec}
+                }
+            }]
+        })
+    sarif = {
+        "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+        "version": "2.1.0",
+        "runs": [{
+            "tool": {"driver": {"name": "pyright", "informationUri": "https://github.com/microsoft/pyright"}},
+            "results": results
+        }]
+    }
+    Path('pyright.sarif').write_text(json.dumps(sarif))
+PY
+
+              exit "$rc"
+BASH
+            ''')
+
+            // Publish SARIF and artifacts
+            recordIssues tools: [sarif(pattern: 'pyright.sarif')], publishAllIssues: true, skipPublishingChecks: true, enabledForFailure: true
+            archiveArtifacts artifacts: 'pyright-report.txt, pyright.json, pyright.sarif', allowEmptyArchive: true
+
+            publishChecks name: env.GITHUB_CONTEXT,
+                          title: 'Pyright',
+                          summary: (pyrightRc == 0 ? 'No type errors ✅' : 'Type issues detected ❌'),
+                          detailsURL: env.RUN_DISPLAY_URL,
+                          text: fileExists('pyright-report.txt') ? readFile('pyright-report.txt') : '',
+                          conclusion: (pyrightRc == 0 ? 'SUCCESS' : 'FAILURE'),
+                          status: 'COMPLETED'
+
+            env.PYRIGHT_RC = pyrightRc.toString()
+          }
+        }
+      }
+    }
+
+    stage('Unit Tests / PyTest') {
+      when { branch 'non-existent' }
+      agent { label 'uv' }
+
+      environment {
+        TEST_PATH = '.'
+        GITHUB_CONTEXT = 'test/pytest'
+      }
+
+      steps {
+        checkout scm
+
+        publishChecks name: env.GITHUB_CONTEXT,
+                     title: 'PyTest',
+                     summary: 'Unit tests started…',
+                     status: 'IN_PROGRESS'
+
+  container(name: 'uv', shell: '/bin/bash') {
+    script {
+      int pytestRc = sh(returnStatus: true, script: '''
+        bash -e -u -o pipefail -s <<'BASH'
+        : > pytest-report.txt
+        rc=0
+        uv tool run pytest "${TEST_PATH}" --maxfail=1 --disable-warnings --junitxml=pytest.xml | tee pytest-report.txt || rc=$?
+        exit "$rc"
+BASH
+      ''')
+      junit allowEmptyResults: true, testResults: 'pytest.xml'
+      archiveArtifacts artifacts: 'pytest-report.txt, pytest.xml', allowEmptyArchive: true
+      publishChecks name: env.GITHUB_CONTEXT,
+                    title: 'PyTest',
+                    summary: (pytestRc == 0 ? 'All tests passed ✅' : 'Test failures ❌'),
+                    detailsURL: env.RUN_DISPLAY_URL,
+                    text: fileExists('pytest-report.txt') ? readFile('pytest-report.txt') : '',
+                    conclusion: (pytestRc == 0 ? 'SUCCESS' : 'FAILURE'),
+                    status: 'COMPLETED'
+      env.PYTEST_RC = pytestRc.toString()
+    }
+  }
+}
+    }
+
+    stage('Quality / pre-commit') {
+      when { branch 'non-existent' }
+      agent { label 'uv' }
+      environment {
+        GITHUB_CONTEXT = 'quality/pre-commit'
+      }
+      steps {
+        publishChecks name: env.GITHUB_CONTEXT,
+                      title: 'pre-commit',
+                      summary: 'pre-commit hooks started…',
+                      status: 'IN_PROGRESS'
+        container(name: 'uv', shell: '/bin/bash') {
+          script {
+            int preCommitRc = sh(returnStatus: true, script: '''
+              bash -e -u -o pipefail -s <<'BASH'
+              : > pre-commit-report.txt
+              : > pre-commit-pyright-snippet.txt
+              rc=0
+              # Run only the pyright hook; this requires .pre-commit-config.yaml to include the pyright hook
+              uv tool run pre-commit run pyright --all-files --show-diff-on-failure --color=always | tee pre-commit-report.txt || rc=$?
+
+              # Provide a suggested config snippet for convenience
+              cat > pre-commit-pyright-snippet.txt <<'SNIP'
+repos:
+  - repo: https://github.com/RobertCraigie/pyright-python
+    rev: v1.1.403
+    hooks:
+      - id: pyright
+        additional_dependencies: []
+SNIP
+              exit "$rc"
+BASH
+            ''')
+
+            archiveArtifacts artifacts: 'pre-commit-report.txt, pre-commit-pyright-snippet.txt', allowEmptyArchive: true
+
+            publishChecks name: env.GITHUB_CONTEXT,
+                          title: 'pre-commit',
+                          summary: (preCommitRc == 0 ? 'All hooks passed ✅' : 'Hook failures ❌'),
+                          detailsURL: env.RUN_DISPLAY_URL,
+                          text: fileExists('pre-commit-report.txt') ? readFile('pre-commit-report.txt') : '',
+                          conclusion: (preCommitRc == 0 ? 'SUCCESS' : 'FAILURE'),
+                          status: 'COMPLETED'
+
+            env.PRECOMMIT_RC = preCommitRc.toString()
+          }
+        }
+      }
+    }
+
+    stage('Docker Build & Push') {
+      when { branch 'main' }
+      agent { label 'uv' }
+
+      environment {
+        DOCKER_IMAGE = 'my-image:latest'
+      }
+
+      steps {
+        publishChecks name: 'image/build', title: 'Docker Image', summary: 'Build & push started…', status: 'IN_PROGRESS'
+        script {
+          int dockerRc = sh(returnStatus: true, script: '''
+            bash -e -u -o pipefail -s <<'BASH'
+            : > docker-build.txt
+            : > image-tag.txt
+            set -x
+            BASE_IMAGE="quay.io/feastdev/feature-server:0.51.0"
+            DOCKERHUB_REPO="docker.io/shuminzheng/devour"
+            IMAGE_TAG="${IMAGE_TAG:-${GIT_COMMIT:0:7}}"
+            docker pull "$BASE_IMAGE" || true
+            docker build --pull --build-arg BASE_IMAGE="$BASE_IMAGE" -f docker/Dockerfile -t "$DOCKERHUB_REPO:$IMAGE_TAG" .
+            echo "Built $DOCKERHUB_REPO:$IMAGE_TAG from $BASE_IMAGE" | tee -a docker-build.txt
+BASH
+          ''')
+          archiveArtifacts artifacts: 'docker-build.txt', allowEmptyArchive: true
+          withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_PASS')]) {
+            sh '''
+              bash -e -u -o pipefail -s <<'BASH'
+              echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin
+              DOCKERHUB_REPO="docker.io/shuminzheng/devour"
+              IMAGE_TAG="${IMAGE_TAG:-${GIT_COMMIT:0:7}}"
+              docker push "$DOCKERHUB_REPO:$IMAGE_TAG"
+              echo "$DOCKERHUB_REPO:$IMAGE_TAG" | tee image-tag.txt
+BASH
+            '''
+          }
+          archiveArtifacts artifacts: 'image-tag.txt', allowEmptyArchive: true
+          publishChecks name: 'image/build', title: 'Docker Image', summary: 'Build & push completed', detailsURL: env.RUN_DISPLAY_URL, text: (fileExists('image-tag.txt') ? "Pushed " + readFile('image-tag.txt') : ''), conclusion: 'SUCCESS', status: 'COMPLETED'
+          env.DOCKER_RC = dockerRc.toString()
+        }
+      }
+    }
+
+    stage('CI Gate') {
+      steps {
+        script {
+          def failed = []
+          if ((env.RUFF_CHECK_RC ?: '0') != '0') { failed << 'Ruff Lint' }
+          if ((env.RUFF_FORMAT_RC ?: '0') != '0') { failed << 'Ruff Format' }
+          if ((env.PYRIGHT_RC ?: '0') != '0') { failed << 'Pyright' }
+          if ((env.PRECOMMIT_RC ?: '0') != '0') { failed << 'pre-commit' }
+          if ((env.PYTEST_RC ?: '0') != '0') { failed << 'Unit Tests' }
+
+          if (failed) {
+            error "CI checks failed: ${failed.join(', ')}"
+          } else {
+            echo 'All CI checks passed.'
+          }
+        }
+      }
+    }
+
+    // --- Optional Release Tagging Stage (template) ---
+    // stage('Release / Tag') {
+    //   when { allOf { branch 'main'; expression { return env.RELEASE_TAG?.trim() } } }
+    //   agent any
+    //   environment { GITHUB_CONTEXT = 'release/tag' }
+    //   steps {
+    //     publishChecks name: env.GITHUB_CONTEXT, title: 'Release Tag', summary: "Tagging ${env.RELEASE_TAG}", status: 'IN_PROGRESS'
+    //     withCredentials([string(credentialsId: 'github-app-token', variable: 'GITHUB_TOKEN')]) {
+    //       sh '''
+    //         bash -e -u -o pipefail -s <<'BASH'
+    //         git config user.name "ci-bot"
+    //         git config user.email "ci-bot@example.com"
+    //         git tag -a "$RELEASE_TAG" -m "Release $RELEASE_TAG"
+    //         git push origin "$RELEASE_TAG"
+    // BASH
+    //       '''
+    //     }
+    //     publishChecks name: env.GITHUB_CONTEXT, title: 'Release Tag', summary: 'Tag pushed', conclusion: 'SUCCESS', status: 'COMPLETED'
+    //   }
+    // }
   }
 }

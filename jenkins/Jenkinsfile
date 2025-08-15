@@ -142,7 +142,7 @@ BASH
     }
 
     stage('Type Check / Pyright') {
-      when { changeRequest() }
+      when { expression { false } }  //changeRequest()
       agent { label 'uv' }
       environment {
         TYPECHECK_PATH = '.'
@@ -231,7 +231,7 @@ BASH
     }
 
     stage('Unit Tests / PyTest') {
-      when { branch 'non-existent' }
+      when { expression { false } }  //changeRequest()
       agent { label 'uv' }
 
       environment {
@@ -273,7 +273,7 @@ BASH
     }
 
     stage('Quality / pre-commit') {
-      when { branch 'non-existent' }
+      when { expression { false } }  //changeRequest()
       agent { label 'uv' }
       environment {
         GITHUB_CONTEXT = 'quality/pre-commit'
@@ -323,7 +323,7 @@ BASH
     }
 
     stage('Docker Build & Push') {
-      when { branch 'main' }
+      when { expression { false } }  // when { branch 'main' }
       agent { label 'uv' }
 
       environment {

@@ -40,7 +40,8 @@ k apply -f prerequisite_setup.yaml
 k wait --for=condition=available --timeout=5m deployment/redis-feast
 k wait --for=condition=available --timeout=5m deployment/postgres-feast
 
-curl -sSL https://raw.githubusercontent.com/feast-dev/feast/refs/heads/master/infra/feast-operator/dist/install.yaml -o feast_operator_install.yaml
+#curl -sSL https://raw.githubusercontent.com/feast-dev/feast/refs/heads/master/infra/feast-operator/dist/install.yaml -o feast_operator_install.yaml
+curl -sSL https://raw.githubusercontent.com/ShumzZzZz/feast/refs/heads/customize-operator/infra/feast-operator/dist/install.yaml -o feast_operator_install.yaml
 k apply -f feast_operator_install.yaml
 
 k wait --for=condition=available --timeout=5m deployment/feast-operator-controller-manager -n feast-operator-system
@@ -161,10 +162,35 @@ k apply -f gateway_virtualService.yaml
 #curl -sSLO https://raw.githubusercontent.com/ShumzZzZz/devour/refs/heads/main/tofu/scripts/feast_setup/istio-hostport-ingress.yaml
 #istioctl install -f istio-hostport-ingress.yaml -y
 
+kubectl get <kind> <name> -n <ns> -oyaml \
+  | yq eval '.metadata.name = "new-name" | del(.metadata.uid, .metadata.resourceVersion)' - \
+
+#kubectl get <kind> <name> -n <ns> -o json \
+#  | jq 'del(.metadata.namespace, .metadata.resourceVersion, .metadata.uid, .metadata.creationTimestamp, .metadata.annotations.creationTimestamp)' \
+
 
 k delete --ignore-not-found=true -f kube-prometheus/manifests/ -f kube-prometheus/manifests/setup
 k delete -f feast.yaml
 k delete -f feast_operator_install.yaml
 k delete -f prerequisite_setup.yaml
+
+
+# for vs, get ingress -n istio-system and get the ALB address, add a cname record to Route53 and create a VS for it to point to
+# k get secrets -n jenkins jenkins-operator-credentials-ci-only -o 'jsonpath={.data.password}' | base64 -d
+#
+
+kubectl annotate ingress -n istio-system web-ingress 'alb.ingress.kubernetes.io/load-balancer-attributes=deletion_protection.enabled=true,routing.http.preserve_host_header.enabled=true' --overwrite
+kubectl annotate ingress -n istio-system web-ingress alb.ingress.kubernetes.io/ssl-redirect='443' --overwrite
+kubectl annotate ingress -n istio-system web-ingress 'alb.ingress.kubernetes.io/certificate-arn=arn:aws:acm:us-east-2:134057274056:certificate/f9f40367-5e81-4cff-8106-7b293b9bfb3f' --overwrite
+kubectl annotate ingress -n istio-system web-ingress 'alb.ingress.kubernetes.io/certificate-arn=# arn:aws:acm:us-east-2:529086600118:certificate/cc43398f-27bf-47f6-99ff-7fec0e9059ac' --overwrite
+
+# run awscli
+kubectl run awscli-test -n jenkins \
+  --image=amazon/aws-cli --restart=Never -it --rm \
+  --command -- /bin/sh
+
+aws sts get-caller-identity  # to get the current role
+
+
 
 

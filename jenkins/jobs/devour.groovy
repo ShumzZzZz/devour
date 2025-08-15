@@ -17,10 +17,12 @@ multibranchPipelineJob('Feast-CI-devour') {
               includes('main PR-*')
               excludes('')
             }
-            statusChecks {
-			 skip(true)
-			 skipBranchSourceNotifications(true)
-			 }
+
+            gitHubStatusChecks {
+              skip(true)
+              skipNotifications(true)
+            }
+
             gitHubPullRequestDiscovery { strategyId(1) }
           }
         }

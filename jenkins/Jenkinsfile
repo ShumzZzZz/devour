@@ -31,31 +31,25 @@ pipeline {
       steps {
         checkout scm
 
-        // Immediately mark the check as in-progress so PRs show activity
-        withChecks(name: env.GITHUB_CONTEXT, includeStage: true) {
-          publishChecks name: env.GITHUB_CONTEXT,
-                       title: 'Ruff',
-                       summary: 'Ruff lint started…',
-                       status: 'IN_PROGRESS'
-        }
+        publishChecks name: env.GITHUB_CONTEXT,
+                     title: 'Ruff',
+                     summary: 'Ruff lint started…',
+                     status: 'IN_PROGRESS'
 
         script {
           // Run Ruff, always emit SARIF for rich PR annotations via Warnings NG
           int rc = sh(returnStatus: true, script: '''
-#!/usr/bin/env bash
-set -euo pipefail
-# Human-readable report in console + file
+bash -eo pipefail <<'BASH'
 uvx ruff check "${LINT_PATH}" | tee ruff-report.txt
-# Emit SARIF for GitHub Checks annotations
 uvx ruff check "${LINT_PATH}" --output-format sarif --output ruff.sarif
-# Enforce formatting without modifying files; append to report
 uvx ruff format "${LINT_PATH}" --check | tee -a ruff-report.txt
+BASH
 ''')
 
           // Publish structured annotations to GitHub through Checks API (via Warnings NG)
           recordIssues tools: [sarif(pattern: 'ruff.sarif')],
                        publishAllIssues: true,
-                       skipPublishingChecks: false,
+                       skipPublishingChecks: true,
                        checksAnnotationScope: 'ALL',
                        enabledForFailure: true
 

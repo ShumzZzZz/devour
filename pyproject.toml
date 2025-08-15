@@ -1,28 +1,36 @@
 [tool.ruff]
-line-length = 100
+line-length = 120
 target-version = "py311"
+# Exclude common directories (defaults include many, but you can customize as needed)
+exclude = [
+  ".git",
+  "__pycache__",
+  "build",
+  "dist",
+  ".venv",
+  "infra",
+  "mlops",
+  "docker"
+]
 
 [tool.ruff.lint]
-# Start with Ruff’s defaults (Pyflakes + essential pycodestyle), then add popular extras.
 select = [
-    "E4", "E7", "E9", "F",   # core
-    "B",                     # flake8-bugbear
-    "I",                     # import sorting
-    "ISC",                   # implicit string concat
-    "UP"                     # pyupgrade-like modernizations
+  "E4", "E7", "E9", "F",   # core pyflakes + pycodestyle
+  "B",                     # flake8-bugbear
+  "I",                     # import sorting (isort-like rules)
+  "ISC",                   # implicit string concatenation across lines
+  "UP"                     # pyupgrade-style modernizations
 ]
 ignore = [
-    "E501",              # let formatter handle wrapping best-effort
-    "F403",
-    "F405"
+  "E501",  # formatting line-length handled by the formatter
+  "F403", "F405"  # suppress warnings about 'import *'
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**.py" = ["S101"]   # example: allow `assert` in tests if you enable security rules later
-
+"tests/**.py" = ["S101"]  # e.g., allow assert statements in test code
 
 [tool.ruff.format]
-# Ruff formatter (a fast, Black-compatible formatter) with a few tweakable knobs.
-quote-style = "double"       # "double" (Black-like) or "single"
-indent-style = "space"       # "space" or "tab"
-docstring-code-format = true
+quote-style = "double"            # enforce double quotes (Black-compatible)
+indent-style = "space"            # spaces (not tabs)
+docstring-code-format = true      # reformat Python code in docstrings
+docstring-code-line-length = "dynamic"  # docstring snippets respect global line-length

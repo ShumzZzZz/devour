@@ -1,19 +1,8 @@
 [project]
 name = "ml-infr-ops"
 version = "0.0.1"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
-    "sagemaker>2.240.0",
-    "boto3>1.38.00",
-    "awswrangler>3.0.0",
-    "pandas>2.0.0",
-    "redshift-connector",
-    "pendulum",
-    "python-decouple",
-    "cachetools",
-    "tqdm",
-    "redis[hiredis]>=4.5",
-    "notebook",
     "pyspark",
     "feast[redis, spark, duckdb]==0.51.0"
 ]
@@ -57,3 +46,8 @@ quote-style = "double"
 indent-style = "space"
 docstring-code-format = true
 docstring-code-line-length = "dynamic"
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+exclude = [".venv"]

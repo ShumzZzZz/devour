@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime
 from time import perf_counter as pc
+
 import numpy as np
 import pandas as pd
 from feast import FeatureStore
@@ -66,7 +67,9 @@ class TestFeatureStore:
         self.fs.push(
             push_source_name="ds_push_product_general_score",
             df=df,
-            to=PushMode.ONLINE if mode == "online" else PushMode.ONLINE_AND_OFFLINE,
+            to=PushMode.ONLINE
+            if mode == "online"
+            else PushMode.ONLINE_AND_OFFLINE,
         )
 
     @timing
@@ -78,19 +81,25 @@ class TestFeatureStore:
         self.fs.push(
             push_source_name="ds_push_product_bestseller_ethnicity_tag",
             df=df,
-            to=PushMode.ONLINE if mode == "online" else PushMode.ONLINE_AND_OFFLINE,
+            to=PushMode.ONLINE
+            if mode == "online"
+            else PushMode.ONLINE_AND_OFFLINE,
         )
 
     @timing
     def run_test_bestseller_propensity(self, mode="online"):
-        df = pd.read_parquet("data/bestseller_features/user_propensity_score.parquet")
+        df = pd.read_parquet(
+            "data/bestseller_features/user_propensity_score.parquet"
+        )
         print(f" df read, with shape {df.shape}")
 
         for chunk in tqdm(range(0, df.shape[0], 10_000)):
             self.fs.push(
                 push_source_name="ds_push_user_propensity_score",
                 df=df.iloc[chunk : chunk + 10_000],
-                to=PushMode.ONLINE if mode == "online" else PushMode.ONLINE_AND_OFFLINE,
+                to=PushMode.ONLINE
+                if mode == "online"
+                else PushMode.ONLINE_AND_OFFLINE,
             )
 
 

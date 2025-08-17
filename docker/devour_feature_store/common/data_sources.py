@@ -1,6 +1,4 @@
-from feast import FileSource, PushSource, RequestSource
-from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import SparkSource
-
+from feast import FileSource, PushSource
 from feast.data_format import ParquetFormat
 
 ds_file_product_general_score = FileSource(
@@ -12,7 +10,7 @@ ds_file_product_general_score = FileSource(
 
 ds_push_product_general_score = PushSource(
     name="ds_push_product_general_score",
-    batch_source=ds_file_product_general_score
+    batch_source=ds_file_product_general_score,
 )
 
 
@@ -23,7 +21,7 @@ ds_push_product_bestseller_ethnicity_tag = PushSource(
         path="data/bestseller_features/product_bestseller_ethnicity_tag.parquet",
         file_format=ParquetFormat(),
         timestamp_field="event_timestamp",
-    )
+    ),
 )
 
 ds_push_user_propensity_score = PushSource(
@@ -33,5 +31,5 @@ ds_push_user_propensity_score = PushSource(
         path="data/bestseller_features/user_propensity_score.parquet",
         file_format=ParquetFormat(),
         timestamp_field="event_timestamp",
-    )
+    ),
 )

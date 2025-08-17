@@ -20,9 +20,8 @@ dependencies = [
 
 
 [tool.ruff]
-line-length = 120
+line-length = 80
 target-version = "py311"
-# Exclude common directories (defaults include many, but you can customize as needed)
 exclude = [
   ".git",
   "__pycache__",
@@ -41,9 +40,9 @@ exclude = [
 select = [
   "E4", "E7", "E9", "F",   # core pyflakes + pycodestyle
   "B",                     # flake8-bugbear
-  "I",                     # import sorting (isort-like rules)
-  "ISC",                   # implicit string concatenation across lines
-  "UP"                     # pyupgrade-style modernizations
+  "I",                      # import sorting (isort-like rules)
+  "ISC",                  # implicit string concatenation across lines
+  "UP"                    # pyupgrade-style modernizations
 ]
 ignore = [
   "E501",  # formatting line-length handled by the formatter
@@ -51,10 +50,10 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**.py" = ["S101"]  # e.g., allow assert statements in test code
+"tests/**.py" = ["S101"]  # allow assert statements in test code
 
 [tool.ruff.format]
-quote-style = "double"            # enforce double quotes (Black-compatible)
-indent-style = "space"            # spaces (not tabs)
-docstring-code-format = true      # reformat Python code in docstrings
-docstring-code-line-length = "dynamic"  # docstring snippets respect global line-length
+quote-style = "double"
+indent-style = "space"
+docstring-code-format = true
+docstring-code-line-length = "dynamic"

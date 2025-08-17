@@ -33,7 +33,8 @@ exclude = [
   "mlops",
   "tofu",
   "demo_project",
-  "jenkins"
+  "jenkins",
+  "**/*.ipynb",
 ]
 
 [tool.ruff.lint]

@@ -38,4 +38,6 @@ terraform.rc
 
 # ignore idea related files for PyCharm
 .idea
+.venv
+
 

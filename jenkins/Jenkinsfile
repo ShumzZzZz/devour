@@ -189,7 +189,8 @@ pipeline {
             ''')
             recordIssues tools: [sarif(pattern: 'pyright.sarif')],
                           publishAllIssues: true,
-                          skipPublishingChecks: true,
+                          skipPublishingChecks: false,
+                          checksAnnotationScope: 'ALL',
                           enabledForFailure: true
             archiveArtifacts artifacts: 'pyright-report.txt, pyright.json, pyright.sarif', allowEmptyArchive: true
             env.PYRIGHT_RC = pyrightRc.toString()

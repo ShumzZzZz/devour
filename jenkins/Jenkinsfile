@@ -183,7 +183,62 @@ pipeline {
                 uv sync --locked
                 uvx pyright ${TYPECHECK_PATH} --warnings --outputjson | tee pyright.json >/dev/null || rc=$?
                 uvx pyright ${TYPECHECK_PATH} --warnings | tee pyright-report.txt || true
-                # ... SARIF conversion script ...
+                # Convert pyright.json -> pyright.sarif
+                python - <<'PY'
+import json, sys
+from pathlib import Path
+
+src = Path("pyright.json")
+out = Path("pyright.sarif")
+if not src.exists():
+    Path(out).write_text("{}", encoding="utf-8")
+    sys.exit(0)
+
+data = json.loads(src.read_text(encoding="utf-8"))
+diags = data.get("generalDiagnostics", [])
+
+# Map severities to SARIF levels
+sev_map = {"error": "error", "warning": "warning", "information": "note"}
+
+rules = {}
+results = []
+for d in diags:
+    rule_id = d.get("rule") or "pyright"
+    rules.setdefault(rule_id, {"id": rule_id, "name": rule_id})
+    rng = d.get("range", {}) or {}
+    s = rng.get("start", {}) or {}
+    e = rng.get("end", {}) or s
+    results.append({
+        "ruleId": rule_id,
+        "level": sev_map.get(d.get("severity","information"), "note"),
+        "message": {"text": d.get("message","")},
+        "locations": [{
+            "physicalLocation": {
+                "artifactLocation": {"uri": d.get("file","")},
+                "region": {
+                    "startLine": int(s.get("line", 0)) + 1,
+                    "startColumn": int(s.get("character", 0)) + 1,
+                    "endLine": int(e.get("line", 0)) + 1,
+                    "endColumn": int(e.get("character", 0)) + 1,
+                }
+            }
+        }]
+    })
+
+sarif = {
+  "version": "2.1.0",
+  "$schema": "https://schemastore.azurewebsites.net/schemas/json/sarif-2.1.0-rtm.5.json",
+  "runs": [{
+     "tool": {"driver": {
+         "name": "Pyright",
+         "informationUri": "https://github.com/microsoft/pyright",
+         "rules": list(rules.values())
+     }},
+     "results": results
+  }]
+}
+out.write_text(json.dumps(sarif, indent=2), encoding="utf-8")
+PY
                 exit "$rc"
               BASH
             ''')

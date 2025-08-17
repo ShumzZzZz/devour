@@ -33,8 +33,8 @@ pipeline {
                 : > lint-report.txt
                 : > ruff.sarif
                 rc=0
-                uv tool run ruff check "${LINT_PATH}" | tee lint-report.txt || rc=$?
-                uv tool run ruff check "${LINT_PATH}" --output-format sarif --output ruff.sarif || true
+                uvx ruff check "${LINT_PATH}" | tee lint-report.txt || rc=$?
+                uvx ruff check "${LINT_PATH}" --output-format sarif --output ruff.sarif || true
                 exit "$rc"
               BASH
             ''')
@@ -85,8 +85,8 @@ pipeline {
               bash -e -u -o pipefail -s <<'BASH'
                 : > ruff-format-report.txt
                 rc=0
-                uv tool run ruff format "${FORMAT_PATH}" --check || rc=$?
-                uv tool run ruff format "${FORMAT_PATH}" --diff | tee ruff-format-report.txt || true
+                uvx ruff format "${FORMAT_PATH}" --check || rc=$?
+                uvx ruff format "${FORMAT_PATH}" --diff | tee ruff-format-report.txt || true
                 exit "$rc"
               BASH
             ''')
@@ -132,7 +132,7 @@ pipeline {
                 : > ruff-autofix-summary.txt
                 : > ruff-format-autofix.diff
                 rc=0
-                uv tool run ruff format "${FORMAT_PATH}" | tee -a ruff-autofix-summary.txt || rc=$?
+                uvx ruff format "${FORMAT_PATH}" | tee -a ruff-autofix-summary.txt || rc=$?
                 git --no-pager diff > ruff-format-autofix.diff || true
                 exit "$rc"
               BASH
@@ -160,7 +160,7 @@ pipeline {
     }
 
     stage('Type Check / Pyright') {
-      when { expression { false } }
+      when { changeRequest() }
       agent { label 'uv' }
       environment {
         TYPECHECK_PATH = '.'
@@ -180,8 +180,9 @@ pipeline {
                 : > pyright.json
                 : > pyright.sarif
                 rc=0
-                uv tool run pyright ${TYPECHECK_PATH} --warnings --outputjson | tee pyright.json >/dev/null || rc=$?
-                uv tool run pyright ${TYPECHECK_PATH} --warnings | tee pyright-report.txt || true
+                uv sync --locked
+                uvx pyright ${TYPECHECK_PATH} --warnings --outputjson | tee pyright.json >/dev/null || rc=$?
+                uvx pyright ${TYPECHECK_PATH} --warnings | tee pyright-report.txt || true
                 # ... SARIF conversion script ...
                 exit "$rc"
               BASH
@@ -232,7 +233,7 @@ pipeline {
               bash -e -u -o pipefail -s <<'BASH'
                 : > pytest-report.txt
                 rc=0
-                uv tool run pytest "${TEST_PATH}" --maxfail=1 --disable-warnings --junitxml=pytest.xml | tee pytest-report.txt || rc=$?
+                uvx pytest "${TEST_PATH}" --maxfail=1 --disable-warnings --junitxml=pytest.xml | tee pytest-report.txt || rc=$?
                 exit "$rc"
               BASH
             ''')
@@ -278,7 +279,7 @@ pipeline {
                 : > pre-commit-report.txt
                 : > pre-commit-pyright-snippet.txt
                 rc=0
-                uv tool run pre-commit run pyright --all-files --show-diff-on-failure --color=always | tee pre-commit-report.txt || rc=$?
+                uvx pre-commit run pyright --all-files --show-diff-on-failure --color=always | tee pre-commit-report.txt || rc=$?
                 cat > pre-commit-pyright-snippet.txt <<'SNIP'
 repos:
   - repo: https://github.com/RobertCraigie/pyright-python

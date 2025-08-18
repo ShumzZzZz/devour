@@ -7,9 +7,18 @@ dependencies = [
     "feast[redis, spark, duckdb]==0.51.0"
 ]
 
+[dependency-groups]
+dev = [
+  "ruff==0.12.*",
+  "pyright==1.1.*",
+  "pytest==8.4.*",
+  "pytest-cov==6.2.*",
+  "coverage==7.10.*",
+]
 
 [tool.ruff]
 line-length = 80
+indent-width = 4
 target-version = "py311"
 exclude = [
   ".git",
@@ -26,20 +35,11 @@ exclude = [
 ]
 
 [tool.ruff.lint]
-select = [
-  "E4", "E7", "E9", "F",   # core pyflakes + pycodestyle
-  "B",                     # flake8-bugbear
-  "I",                      # import sorting (isort-like rules)
-  "ISC",                  # implicit string concatenation across lines
-  "UP"                    # pyupgrade-style modernizations
-]
-ignore = [
-  "E501",  # formatting line-length handled by the formatter
-  "F403", "F405"  # suppress warnings about 'import *'
-]
+select = ["E4", "E7", "E9", "F", "B", "I", "ISC", "UP"]
+ignore = ["E501", "F403", "F405"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**.py" = ["S101"]  # allow assert statements in test code
+"tests/**.py" = ["S101"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -51,3 +51,24 @@ docstring-code-line-length = "dynamic"
 venvPath = "."
 venv = ".venv"
 exclude = [".venv"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["docker"]
+addopts = [
+  "-ra",
+  "-v",
+  "--strict-markers",
+#  "--cov=docker/devour_feature_store",
+#  "--cov-report=term-missing"
+]
+filterwarnings = ["error::DeprecationWarning"]
+
+#[tool.coverage.run]  # TODO: setup coverage later
+#source = ["docker/devour_feature_store"]
+#branch = true
+#
+#[tool.coverage.report]
+#show_missing = true
+#skip_covered = true
+#fail_under = 0

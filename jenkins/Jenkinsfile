@@ -167,6 +167,7 @@ pipeline {
         GITHUB_CONTEXT = 'type/pyright'
       }
       steps {
+        checkout scm
         publishChecks name: env.GITHUB_CONTEXT,
                       title: 'Pyright',
                       summary: 'Static type check started…',

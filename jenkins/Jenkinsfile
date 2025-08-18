@@ -38,7 +38,8 @@ pipeline {
                 exit "$rc"
               BASH
             ''')
-            recordIssues tools: [sarif(pattern: 'ruff.sarif')],
+            recordIssues id: 'ruff-sarif',
+                          tools: [sarif(pattern: 'ruff.sarif')],
                           publishAllIssues: true,
                           skipPublishingChecks: true,
                           checksAnnotationScope: 'ALL',
@@ -243,7 +244,8 @@ PY
                 exit "$rc"
               BASH
             ''')
-            recordIssues tools: [sarif(pattern: 'pyright.sarif')],
+            recordIssues id: 'pyright-sarif',
+                          tools: [sarif(pattern: 'pyright.sarif')],
                           publishAllIssues: true,
                           skipPublishingChecks: false,
                           checksAnnotationScope: 'ALL',

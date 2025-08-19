@@ -379,7 +379,7 @@ SNIP
     apiVersion: v1
     kind: Pod
     spec:
-      serviceAccountName: jenkins
+      serviceAccountName: jenkins-operator-ci
       restartPolicy: Never
       containers:
         - name: kaniko

@@ -41,7 +41,7 @@ pipeline {
             recordIssues id: 'ruff-sarif',
                           tools: [sarif(pattern: 'ruff.sarif')],
                           publishAllIssues: true,
-                          skipPublishingChecks: true,
+                          skipPublishingChecks: false,
                           checksAnnotationScope: 'ALL',
                           enabledForFailure: true
             archiveArtifacts artifacts: 'lint-report.txt, ruff.sarif', allowEmptyArchive: true
@@ -199,7 +199,6 @@ if not src.exists():
 data = json.loads(src.read_text(encoding="utf-8"))
 diags = data.get("generalDiagnostics", [])
 
-# Map severities to SARIF levels
 sev_map = {"error": "error", "warning": "warning", "information": "note"}
 
 rules = {}
@@ -319,7 +318,7 @@ PY
       }
     }
 
-    stage('Quality / pre-commit') {
+    stage('Quality / pre-commit') {  // TODO: combine lint/format/type checks into a single stage later
       when { expression { false } }
       agent { label 'uv' }
       environment {
@@ -373,69 +372,105 @@ SNIP
     }
 
     stage('Docker Build & Push') {
-      when { expression { false } }
-      agent { label 'uv' }
+      when { branch 'main' }
+      agent {
+		kubernetes {
+		  yaml """
+	apiVersion: v1
+	kind: Pod
+	spec:
+	  serviceAccountName: jenkins
+	  restartPolicy: Never
+	  containers:
+		- name: kaniko
+		  image: gcr.io/kaniko-project/executor:latest
+		  args: ["sleep", "infinity"]
+		  tty: true
+		  volumeMounts:
+			- name: docker-config
+			  mountPath: /kaniko/.docker/
+			- name: workspace-volume
+			  mountPath: /workspace
+	  volumes:
+		- name: docker-config
+		  emptyDir: {}
+		- name: workspace-volume
+		  emptyDir: {}
+	"""
+		}
+	  }
       environment {
-        DOCKER_IMAGE = 'my-image:latest'
+        BASE_IMAGE="quay.io/feastdev/feature-server:0.51.0"
+        DOCKERHUB_REPO="docker.io/shuminzheng/devour"
       }
       steps {
         publishChecks name: 'image/build',
                       title: 'Docker Image',
-                      summary: 'Build & push started…',
+                      summary: 'Build & push (Kaniko) started…',
                       status: 'IN_PROGRESS'
 
-        script {
-          int dockerRc = sh(returnStatus: true, script: '''
-            bash -e -u -o pipefail -s <<'BASH'
-              : > docker-build.txt
-              : > image-tag.txt
-              set -x
-              export DOCKER_BUILDKIT=1
-              BASE_IMAGE="quay.io/feastdev/feature-server:0.51.0"
-              DOCKERHUB_REPO="docker.io/shuminzheng/devour"
-              IMAGE_TAG="${IMAGE_TAG:-${GIT_COMMIT:0:7}}"
-              docker pull "$BASE_IMAGE" || true
-              docker build --pull --build-arg BASE_IMAGE="$BASE_IMAGE" -f docker/Dockerfile -t "$DOCKERHUB_REPO:$IMAGE_TAG" .
-              echo "Built $DOCKERHUB_REPO:$IMAGE_TAG from $BASE_IMAGE" | tee -a docker-build.txt
-            BASH
-          ''')
-          archiveArtifacts artifacts: 'docker-build.txt', allowEmptyArchive: true
+        checkout scm
 
-          withCredentials([usernamePassword(credentialsId: 'dockerhub-creds',
-                                           usernameVariable: 'DOCKERHUB_USER',
-                                           passwordVariable: 'DOCKERHUB_PASS')]) {
-            sh '''
-              bash -e -u -o pipefail -s <<'BASH'
-                echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin
-                DOCKERHUB_REPO="docker.io/shuminzheng/devour"
-                IMAGE_TAG="${IMAGE_TAG:-${GIT_COMMIT:0:7}}"
-                docker push "$DOCKERHUB_REPO:$IMAGE_TAG"
-                echo "$DOCKERHUB_REPO:$IMAGE_TAG" | tee image-tag.txt
-              BASH
-            '''
-            archiveArtifacts artifacts: 'image-tag.txt', allowEmptyArchive: true
-          }
-          env.DOCKER_RC = dockerRc.toString()
-        }
-      }
+		container('kaniko') {
+		  script {
+			// Immutable tag: prefer provided IMAGE_TAG, else short SHA
+			def computedTag = env.IMAGE_TAG?.trim()
+			if (!computedTag) {
+			  computedTag = sh(script: 'git rev-parse --short=7 HEAD', returnStdout: true).trim()
+			}
+			env.IMAGE_TAG = computedTag
+
+			// Create DockerHub auth for Kaniko
+			withCredentials([usernamePassword(credentialsId: 'dockerhub-creds',
+											 usernameVariable: 'DOCKERHUB_USER',
+											 passwordVariable: 'DOCKERHUB_PASS')]) {
+			  sh '''
+				bash -euo pipefail -c '
+				  mkdir -p /kaniko/.docker
+				  cat > /kaniko/.docker/config.json <<EOF
+	{"auths":{"https://index.docker.io/v1/":{"auth":"$(printf "%s:%s" "$DOCKERHUB_USER" "$DOCKERHUB_PASS" | base64 -w0)"}}}
+	EOF
+				'
+			  '''
+			}
+
+			int buildRc = sh(returnStatus: true, script: '''
+			  bash -euo pipefail -c '
+				: > docker-build.txt
+				: > image-tag.txt
+				/kaniko/executor \
+				  --context "$PWD" \
+				  --dockerfile docker/Dockerfile \
+				  --destination "$DOCKERHUB_REPO:$IMAGE_TAG" \
+				  --build-arg BASE_IMAGE="$BASE_IMAGE" \
+				  --cache=true \
+				  --snapshotMode=redo
+				echo "$DOCKERHUB_REPO:$IMAGE_TAG" | tee image-tag.txt
+			  '
+			''')
+			archiveArtifacts artifacts: 'docker-build.txt,image-tag.txt', allowEmptyArchive: true
+			env.DOCKER_RC = buildRc.toString()
+		  }
+		}
+	  }
       post {
-        always {
-          script {
-            def txt = fileExists('image-tag.txt')
-                        ? "Pushed " + readFile('image-tag.txt')
-                        : (fileExists('docker-build.txt') ? readFile('docker-build.txt') : '')
-            def rc = (env.DOCKER_RC ?: '0') as Integer
-            publishChecks name: 'image/build',
-                          title: 'Docker Image',
-                          summary: 'Build & push completed',
-                          detailsURL: env.RUN_DISPLAY_URL,
-                          text: txt,
-                          conclusion: (rc == 0 ? 'SUCCESS' : 'FAILURE'),
-                          status: 'COMPLETED'
-          }
-        }
-      }
-    }
+		always {
+		  script {
+			def txt = fileExists('image-tag.txt')
+						? "Pushed " + readFile('image-tag.txt')
+						: (fileExists('docker-build.txt') ? readFile('docker-build.txt') : '')
+			def rc = (env.DOCKER_RC ?: '0') as Integer
+			publishChecks name: 'image/build',
+						  title: 'Docker Image',
+						  summary: 'Build & push (Kaniko) completed',
+						  detailsURL: env.RUN_DISPLAY_URL,
+						  text: txt,
+						  conclusion: (rc == 0 ? 'SUCCESS' : 'FAILURE'),
+						  status: 'COMPLETED'
+		  }
+		}
+	  }
+	}
 
     stage('CI Gate') {
       steps {

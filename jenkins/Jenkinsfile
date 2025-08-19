@@ -375,28 +375,28 @@ SNIP
       when { branch 'main' }
       agent {
 		kubernetes {
-		  yaml """
-	apiVersion: v1
-	kind: Pod
-	spec:
-	  serviceAccountName: jenkins
-	  restartPolicy: Never
-	  containers:
-		- name: kaniko
-		  image: gcr.io/kaniko-project/executor:latest
-		  args: ["sleep", "infinity"]
-		  tty: true
-		  volumeMounts:
-			- name: docker-config
-			  mountPath: /kaniko/.docker/
-			- name: workspace-volume
-			  mountPath: /workspace
-	  volumes:
-		- name: docker-config
-		  emptyDir: {}
-		- name: workspace-volume
-		  emptyDir: {}
-	"""
+          yaml """
+    apiVersion: v1
+    kind: Pod
+    spec:
+      serviceAccountName: jenkins
+      restartPolicy: Never
+      containers:
+        - name: kaniko
+          image: gcr.io/kaniko-project/executor:latest
+          args: ["sleep", "infinity"]
+          tty: true
+          volumeMounts:
+            - name: docker-config
+              mountPath: /kaniko/.docker/
+            - name: workspace-volume
+              mountPath: /workspace
+      volumes:
+        - name: docker-config
+          emptyDir: {}
+        - name: workspace-volume
+          emptyDir: {}
+    """
 		}
 	  }
       environment {

@@ -249,7 +249,7 @@ resource "aws_eip" "bastion" {
 resource "aws_instance" "bastion" {
   ami                         = "ami-03f8acd418785369b" # replace with your bastion AMI
   instance_type               = "t2.micro"
-  key_name                    = var.key_pair_name
+  key_name                    = "shumin-test"
   subnet_id                   = aws_subnet.public[0].id
   vpc_security_group_ids      = [aws_security_group.bastion_sg.id]
   associate_public_ip_address = true
@@ -350,7 +350,7 @@ resource "aws_instance" "k8s_control_plane_nodes" {
   count                  = 1
   ami                    = "ami-03f8acd418785369b"
   instance_type          = "t2.medium"
-  key_name               = var.key_pair_name
+  key_name               = "shumin-test"
   iam_instance_profile   = aws_iam_instance_profile.ec2_k8s_node_profile.name
   subnet_id              = values(aws_subnet.private)[0].id # ← private
   vpc_security_group_ids = [aws_security_group.devour_k8s.id]
@@ -368,7 +368,7 @@ resource "aws_instance" "k8s_worker_nodes" {
   count                  = 2
   ami                    = "ami-03f8acd418785369b"
   instance_type          = "t2.xlarge"
-  key_name               = var.key_pair_name
+  key_name               = "shumin-test"
   iam_instance_profile   = aws_iam_instance_profile.ec2_k8s_node_profile.name
   subnet_id              = values(aws_subnet.private)[0].id # ← private
   vpc_security_group_ids = [aws_security_group.devour_k8s.id]

@@ -6,10 +6,10 @@ metadata:
 stringData:
   redis: |
     type: redis
-    connection_string: "<redis_host>,ssl=true,password=<redis-password>"
+    connection_string: "${redisUrl},ssl=true,password=${redisPassword}"
     redis_type: redis_cluster
   sql: |
-    path: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres-service.feast.svc.cluster.local:5432/${POSTGRES_DB}
+    path: postgresql+psycopg://${postgresUser}:${postgresPassword}@postgres-service.feast.svc.cluster.local:5432/${postgresDb}
     cache_ttl_seconds: 60
     sqlalchemy_config_kwargs:
         echo: false
@@ -38,11 +38,11 @@ spec:
         server:
           envFrom:
           - secretRef:
-              name: feast-secret
+              name: feast-secrets
           - configMapRef:
               name: feast-config
           logLevel: debug
-          image: "docker.io/shuminzheng/devour:v1.0"
+          image: "docker.io/shuminzheng/devour:v1.0" # TODO change to ECR uri
           imagePullPolicy: "Always"
     offlineStore:
       persistence:
@@ -57,7 +57,7 @@ spec:
       server:
         envFrom:
         - secretRef:
-            name: feast-secret
+            name: feast-secrets
         - configMapRef:
             name: feast-config
         env:
@@ -76,7 +76,7 @@ spec:
     ui:
       envFrom:
       - secretRef:
-          name: feast-secret
+          name: feast-secrets
       - configMapRef:
           name: feast-config
       logLevel: debug

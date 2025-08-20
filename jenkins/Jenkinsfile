@@ -422,7 +422,7 @@ SNIP
                                             usernameVariable: 'DOCKERHUB_USER',
                                             passwordVariable: 'DOCKERHUB_PASS')]) {
             sh '''
-              /busybox/sh -ceu <<'BUSYBOX'
+              /busybox/sh -eu <<'BUSYBOX'
 mkdir -p /kaniko/.docker
 AUTH="$(printf '%s:%s' "$DOCKERHUB_USER" "$DOCKERHUB_PASS" | /busybox/base64 | /busybox/tr -d '\n')"
 printf '%s\n' "{\"auths\":{\"https://index.docker.io/v1/\":{\"auth\":\"${AUTH}\"}}}" > /kaniko/.docker/config.json

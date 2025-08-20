@@ -119,6 +119,7 @@ pipeline {
         GITHUB_CONTEXT = 'format/ruff-autofix'
       }
       steps {
+        checkout scm
         publishChecks name: env.GITHUB_CONTEXT,
                       title: 'Ruff Format (auto-fix)',
                       summary: 'Auto-formatting on main…',
@@ -132,7 +133,6 @@ pipeline {
                 : > ruff-format-autofix.diff
                 rc=0
                 uvx ruff format "${FORMAT_PATH}" | tee -a ruff-autofix-summary.txt || rc=$?
-                git --no-pager diff > ruff-format-autofix.diff || true
                 exit "$rc"
               BASH
             ''')

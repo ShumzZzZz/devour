@@ -376,27 +376,27 @@ SNIP
       agent {
         kubernetes {
           yaml """
-    apiVersion: v1
-    kind: Pod
-    spec:
-      serviceAccountName: jenkins-operator-ci
-      restartPolicy: Never
-      volumes:
-        - name: docker-config
-          emptyDir: {}
-      containers:
-        - name: kaniko
-          image: gcr.io/kaniko-project/executor:debug
-          imagePullPolicy: Always
-          command: ["/busybox/sh", "-c", "sleep 365d"]
-          tty: true
-          volumeMounts:
-            - name: workspace-volume
-              mountPath: /home/jenkins/agent
-              readOnly: false
+        apiVersion: v1
+        kind: Pod
+        spec:
+          serviceAccountName: jenkins-operator-ci
+          restartPolicy: Never
+          volumes:
             - name: docker-config
-              mountPath: /kaniko/.docker/
-    """
+              emptyDir: {}
+          containers:
+            - name: kaniko
+              image: gcr.io/kaniko-project/executor:debug
+              imagePullPolicy: Always
+              command: ["/busybox/sh", "-c", "sleep 365d"]
+              tty: true
+              volumeMounts:
+                - name: workspace-volume
+                  mountPath: /home/jenkins/agent
+                  readOnly: false
+                - name: docker-config
+                  mountPath: /kaniko/.docker/
+        """
         }
       }
       environment {
@@ -452,10 +452,11 @@ SNIP
             env.DOCKER_RC = buildRc.toString()
 
             if (buildRc != 0) {
-              currentBuild.result = 'FAILURE'   // mark the run
-              error "Docker build failed with exit code ${buildRc}"  // stop the pipeline
+              currentBuild.result = 'FAILURE'
+              error "Docker build failed with exit code ${buildRc}"
             }
-         }
+          }
+        }
       }
       post {
         always {

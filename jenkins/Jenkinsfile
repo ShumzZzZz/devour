@@ -446,11 +446,11 @@ BUSYBOX
             int buildRc = sh(returnStatus: true, script: '''
               /busybox/sh -ceu '
                 set -o pipefail
+                export DOCKER_CONFIG=/kaniko/.docker
                 : > "$WORKSPACE/docker-build.txt"
                 : > "$WORKSPACE/image-tag.txt"
 
                 /kaniko/executor \
-                  --docker-config=/kaniko/.docker \
                   --context "$WORKSPACE" \
                   --dockerfile "$WORKSPACE/docker/Dockerfile" \
                   --destination "$DOCKERHUB_REPO:$IMAGE_TAG" \

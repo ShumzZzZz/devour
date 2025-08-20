@@ -42,7 +42,7 @@ spec:
           - configMapRef:
               name: feast-config
           logLevel: debug
-          image: "docker.io/shuminzheng/devour:v1.0" # TODO change to ECR uri
+          image: "${DEVOUR_SERVER_IMAGE}"
           imagePullPolicy: "Always"
     offlineStore:
       persistence:
@@ -71,7 +71,7 @@ spec:
             cpu: 1500m
             memory: 20Gi
         logLevel: debug
-        image: "docker.io/shuminzheng/devour:v1.0"
+        image: "${DEVOUR_SERVER_IMAGE}"
         imagePullPolicy: "Always"
     ui:
       envFrom:
@@ -80,6 +80,6 @@ spec:
       - configMapRef:
           name: feast-config
       logLevel: debug
-      image: "docker.io/shuminzheng/devour:v1.0"
+      image: "${DEVOUR_SERVER_IMAGE}"
       imagePullPolicy: "Always"
 

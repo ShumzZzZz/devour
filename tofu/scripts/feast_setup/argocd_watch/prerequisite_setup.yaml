@@ -182,7 +182,7 @@ metadata:
 data:
   POSTGRES_USER: "feastuser"
   POSTGRES_DB: "feastdb"
-#  PGADMIN_DEFAULT_EMAIL: "admin@example.com"
+  DEVOUR_SERVER_IMAGE: "docker.io/shuminzheng/devour:v1.0"  # TODO change to ECR uri
 ---
 # PersistentVolumeClaim for PostgreSQL data
 apiVersion: v1

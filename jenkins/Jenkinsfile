@@ -2,8 +2,6 @@ pipeline {
   agent any
 
   options {
-//     timestamps()
-//     ansiColor('xterm')
     buildDiscarder(logRotator(artifactDaysToKeepStr: '',
                               artifactNumToKeepStr: '5',
                               daysToKeepStr: '',
@@ -318,11 +316,11 @@ PY
       }
     }
 
-    stage('Quality / pre-commit') {  // TODO: combine lint/format/type checks into a single stage later
+    stage('Quality - Other / pre-commit') {  // TODO: combine lint/format/type checks into a single stage later
       when { expression { false } }
       agent { label 'uv' }
       environment {
-        GITHUB_CONTEXT = 'quality/pre-commit'
+        GITHUB_CONTEXT = 'quality-other/pre-commit'
       }
       steps {
         publishChecks name: env.GITHUB_CONTEXT,
@@ -431,13 +429,6 @@ cat > /kaniko/.docker/config.json <<EOF
 {"auths":{"https://index.docker.io/v1/":{"auth":"$AUTH"}}}
 EOF
 
-echo "== /kaniko/.docker/config.json (size + content) =="
-/busybox/ls -l /kaniko/.docker/config.json || true
-/busybox/wc -c < /kaniko/.docker/config.json || true
-/busybox/cat -A /kaniko/.docker/config.json || true
-
-/busybox/grep -q '"auths"' /kaniko/.docker/config.json
-/busybox/grep -q '"auth":' /kaniko/.docker/config.json
 BUSYBOX
 '''
           }
@@ -490,7 +481,7 @@ BUSYBOX
       }
     }
 
-    stage('CI Gate') {
+    stage('PR CI Gate') {
       steps {
         script {
           def failed = []

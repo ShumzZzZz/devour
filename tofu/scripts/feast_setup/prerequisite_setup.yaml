@@ -1,3 +1,133 @@
+apiVersion: external-secrets.io/v1
+kind: ClusterSecretStore
+metadata:
+  name: aws-secrets
+spec:
+  provider:
+    aws:
+      service: SecretsManager
+      region: us-east-2
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: githubapp-creds
+  namespace: jenkins
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: aws-secrets
+  target:
+    name: githubapp-creds
+    creationPolicy: Owner
+    template:
+      type: Opaque
+      metadata:
+        labels:
+          jenkins.io/credentials-type: githubApp
+          jenkins.io/credentials-scope: global
+        annotations:
+          jenkins.io/credentials-description: "GitHub App for Jenkins (from AWS Secrets Manager)"
+      data:
+        appId: "{{ .appId }}"
+        privateKey: "{{ .privateKey }}"
+  data:
+    - secretKey: appId
+      remoteRef: { key: mle/github-app-sk, property: appId }
+    - secretKey: privateKey
+      remoteRef: { key: mle/github-app-sk, property: privateKey }
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: dockerhub-creds
+  namespace: jenkins
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: aws-secrets
+  target:
+    name: dockerhub-creds
+    creationPolicy: Owner
+    template:
+      type: Opaque
+      metadata:
+        labels:
+          jenkins.io/credentials-type: usernamePassword
+          jenkins.io/credentials-scope: global
+        annotations:
+          jenkins.io/credentials-description: "Docker Hub credentials for Jenkins (from AWS Secrets Manager)"
+      data:
+        username: "{{ .username }}"
+        password: "{{ .password }}"
+  data:
+    - secretKey: username
+      remoteRef: { key: mle/dockerhub-creds, property: username }
+    - secretKey: password
+      remoteRef: { key: mle/dockerhub-creds, property: password }
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: feast-creds
+  namespace: jenkins
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: aws-secrets
+  target:
+    name: feast-creds
+    creationPolicy: Owner
+    template:
+      type: Opaque
+      metadata:
+        labels:
+          jenkins.io/credentials-type: usernamePassword
+          jenkins.io/credentials-scope: global
+        annotations:
+          jenkins.io/credentials-description: "Feast credentials for Jenkins (from AWS Secrets Manager)"
+      data:
+        redisUrl: "{{ .redisUrl }}"
+        redisPassword: "{{ .redisPassword }}"
+        postgresPassword: "{{ .postgresPassword }}"
+  data:
+    - secretKey: redisUrl
+      remoteRef: { key: mle/feast-creds, property: redisUrl }
+    - secretKey: redisPassword
+      remoteRef: { key: mle/feast-creds, property: redisPassword }
+    - secretKey: postgresPassword
+      remoteRef: { key: mle/feast-creds, property: postgresPassword }
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: feast-secrets
+  namespace: feast
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: aws-secrets
+  target:
+    name: feast-secrets
+    creationPolicy: Owner
+    template:
+      type: Opaque
+      data:
+        redisUrl: "{{ .redisUrl }}"
+        redisPassword: "{{ .redisPassword }}"
+        postgresPassword: "{{ .postgresPassword }}"
+  data:
+    - secretKey: redisUrl
+      remoteRef: { key: mle/feast-creds, property: redisUrl }
+    - secretKey: redisPassword
+      remoteRef: { key: mle/feast-creds, property: redisPassword }
+    - secretKey: postgresPassword
+      remoteRef: { key: mle/feast-creds, property: postgresPassword }
+---
 # Configure container storage interface
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
@@ -43,18 +173,6 @@ volumeBindingMode: WaitForFirstConsumer
 #    fsType: ext4
 #    readOnly: false
 #---
-
-# Secret for sensitive environment variables (passwords)
-apiVersion: v1
-kind: Secret
-metadata:
-  name: feast-secret
-  namespace: feast
-type: Opaque
-stringData:
-  POSTGRES_PASSWORD: "pgfeastpassword"
-#  PGADMIN_DEFAULT_PASSWORD: "pgadminpassword"
----
 # ConfigMap for non-sensitive environment variables
 apiVersion: v1
 kind: ConfigMap
@@ -94,7 +212,6 @@ spec:
 #    requests:
 #      storage: 10Gi
 ---
-# Deployment for PostgreSQL
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -120,17 +237,17 @@ spec:
               valueFrom:
                 configMapKeyRef:
                   name: feast-config
-                  key: POSTGRES_USER
+                  key: postgresUser
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: feast-secret
-                  key: POSTGRES_PASSWORD
+                  name: feast-secrets
+                  key: postgresPassword
             - name: POSTGRES_DB
               valueFrom:
                 configMapKeyRef:
                   name: feast-config
-                  key: POSTGRES_DB
+                  key: postgresDb
             - name: PGDATA
               value: /var/lib/postgresql/data/pgdata
           volumeMounts:
@@ -138,13 +255,11 @@ spec:
               mountPath: /var/lib/postgresql/data
           resources:
             requests:
-#              ephemeral-storage: "100Mi"
               cpu: "150m"
               memory: "128Mi"
             limits:
-#              ephemeral-storage: "200Mi"
               cpu: "300m"
-              memory: "256Mi"
+              memory: "512Mi"
       volumes:
         - name: postgres-storage
           persistentVolumeClaim:

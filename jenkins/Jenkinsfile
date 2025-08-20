@@ -382,28 +382,18 @@ SNIP
       serviceAccountName: jenkins-operator-ci
       restartPolicy: Never
       volumes:
-        - name: workspace
-          emptyDir: {}
         - name: docker-config
           emptyDir: {}
       containers:
-        - name: git
-          image: alpine/git:latest
-          imagePullPolicy: IfNotPresent
-          command: ["/bin/sh", "-c", "sleep 365d"]
-          tty: true
-          volumeMounts:
-            - name: workspace
-              mountPath: /workspace
-
         - name: kaniko
           image: gcr.io/kaniko-project/executor:debug
           imagePullPolicy: Always
           command: ["/busybox/sh", "-c", "sleep 365d"]
           tty: true
           volumeMounts:
-            - name: workspace
-              mountPath: /workspace
+            - name: workspace-volume
+              mountPath: /home/jenkins/agent
+              readOnly: false
             - name: docker-config
               mountPath: /kaniko/.docker/
     """
@@ -419,10 +409,12 @@ SNIP
                       summary: 'Build & push (Kaniko) started…',
                       status: 'IN_PROGRESS'
 
-        container('git') {
-          dir('/workspace') {
-            checkout scm
+        script {
+          def computedTag = env.IMAGE_TAG?.trim()
+          if (!computedTag) {
+            computedTag = sh(script: 'git -C "$WORKSPACE" rev-parse --short=7 HEAD', returnStdout: true).trim()
           }
+          env.IMAGE_TAG = computedTag
         }
 
         container('kaniko') {
@@ -441,28 +433,23 @@ SNIP
           }
 
           script {
-            def computedTag = env.IMAGE_TAG?.trim()
-            if (!computedTag) {
-              computedTag = sh(script: 'git -C /workspace rev-parse --short=7 HEAD', returnStdout: true).trim()
-            }
-            env.IMAGE_TAG = computedTag
-
-            int buildRc = sh(returnStatus: true, script: """
+            int buildRc = sh(returnStatus: true, script: '''
               /busybox/sh -ceu '
-                : > /workspace/docker-build.txt
-                : > /workspace/image-tag.txt
+                : > "$WORKSPACE/docker-build.txt"
+                : > "$WORKSPACE/image-tag.txt"
+
                 /kaniko/executor \
-                  --context=/workspace \
-                  --dockerfile=/workspace/docker/Dockerfile \
-                  --destination=$DOCKERHUB_REPO:$IMAGE_TAG \
+                  --context "$WORKSPACE" \
+                  --dockerfile "$WORKSPACE/docker/Dockerfile" \
+                  --destination "$DOCKERHUB_REPO:$IMAGE_TAG" \
                   --build-arg BASE_IMAGE="$BASE_IMAGE" \
                   --cache=true \
                   --snapshotMode=redo
-                echo "$DOCKERHUB_REPO:$IMAGE_TAG" | tee /workspace/image-tag.txt
-              '
-            """)
 
-            archiveArtifacts artifacts: 'docker-build.txt,image-tag.txt', allowEmptyArchive: true, onlyIfSuccessful: false
+                echo "$DOCKERHUB_REPO:$IMAGE_TAG" | tee "$WORKSPACE/image-tag.txt"
+              '
+            ''')
+            archiveArtifacts artifacts: 'docker-build.txt,image-tag.txt', allowEmptyArchive: true
             env.DOCKER_RC = buildRc.toString()
           }
         }
@@ -471,8 +458,8 @@ SNIP
         always {
           script {
             def txt = fileExists('image-tag.txt')
-                     ? "Pushed " + readFile('image-tag.txt')
-                     : (fileExists('docker-build.txt') ? readFile('docker-build.txt') : '')
+                      ? "Pushed " + readFile('image-tag.txt')
+                      : (fileExists('docker-build.txt') ? readFile('docker-build.txt') : '')
             def rc = (env.DOCKER_RC ?: '0') as Integer
             publishChecks name: 'image/build',
                           title: 'Docker Image',

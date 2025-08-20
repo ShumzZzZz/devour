@@ -1,5 +1,10 @@
 multibranchPipelineJob('Feast-CI-devour') {
   displayName('Feast-CI-devour')
+//   configure { root ->
+//     def bs = root / 'buildStrategies'
+//     bs << 'com.igalg.jenkins.plugins.multibranch.buildstrategy.IncludeRegionBranchBuildStrategy' {
+//       includedRegions('devour_feature_store/**')
+//   }
   branchSources {
     branchSource {
       source {

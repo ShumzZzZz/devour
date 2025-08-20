@@ -11,7 +11,7 @@ pipeline {
 
   stages {
     stage('Lint / Ruff') {
-      when { changeRequest() beforeAgent true }
+      when { changeRequest(); beforeAgent true }
       agent { label 'uv' }
       environment {
         LINT_PATH = '.'
@@ -65,7 +65,7 @@ pipeline {
     }
 
     stage('Format / Ruff') {
-      when { changeRequest() beforeAgent true}
+      when { changeRequest(); beforeAgent true}
       agent { label 'uv' }
       environment {
         FORMAT_PATH = '.'
@@ -112,7 +112,7 @@ pipeline {
     }
 
     stage('Format / Ruff (Main Auto‑fix)') {
-      when { branch 'main' beforeAgent true  }
+      when { branch 'main'; beforeAgent true  }
       agent { label 'uv' }
       environment {
         FORMAT_PATH = '.'
@@ -159,7 +159,7 @@ pipeline {
     }
 
     stage('Type Check / Pyright') {
-      when { changeRequest() beforeAgent true  }
+      when { changeRequest(); beforeAgent true  }
       agent { label 'uv' }
       environment {
         TYPECHECK_PATH = '.'
@@ -270,7 +270,7 @@ PY
     }
 
     stage('Unit Tests / PyTest') {
-      when { expression { false } beforeAgent true  }
+      when { expression { false }; beforeAgent true  }
       agent { label 'uv' }
       environment {
         TEST_PATH = '.'
@@ -317,7 +317,7 @@ PY
     }
 
     stage('Quality - Other / pre-commit') {  // TODO: combine lint/format/type checks into a single stage later
-      when { expression { false } beforeAgent true  }
+      when { expression { false }; beforeAgent true  }
       agent { label 'uv' }
       environment {
         GITHUB_CONTEXT = 'quality-other/pre-commit'
@@ -370,7 +370,7 @@ SNIP
     }
 
     stage('Docker Build & Push') {
-      when { branch 'main' changeset 'devour_feature_store/**' beforeAgent true }
+      when { branch 'main'; changeset 'devour_feature_store/**'; beforeAgent true }
       agent {
         kubernetes {
           yaml """

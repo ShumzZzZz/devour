@@ -422,18 +422,18 @@ SNIP
                                             usernameVariable: 'DOCKERHUB_USER',
                                             passwordVariable: 'DOCKERHUB_PASS')]) {
             sh '''
-              /busybox/sh -ceu '
+              /busybox/sh -ceu "
                 mkdir -p /kaniko/.docker
-                AUTH="$(printf "%s:%s" "$DOCKERHUB_USER" "$DOCKERHUB_PASS" | /busybox/base64 | /busybox/tr -d "\\n")"
-                printf '{"auths":{"https://index.docker.io/v1/":{"auth":"%s"}}}\n' "$AUTH" > /kaniko/.docker/config.json
-                mkdir -p /kaniko/.docker
-              '
+                AUTH=$(printf '%s:%s' \"$DOCKERHUB_USER\" \"$DOCKERHUB_PASS\" | /busybox/base64 | /busybox/tr -d '\\n')
+                printf \"{\\\"auths\\\":{\\\"https://index.docker.io/v1/\\\":{\\\"auth\\\":\\\"%s\\\"}}}\\n\" \"$AUTH\" > /kaniko/.docker/config.json
+              "
             '''
           }
 
           script {
             int buildRc = sh(returnStatus: true, script: '''
               /busybox/sh -ceu '
+                set -o pipefail
                 : > "$WORKSPACE/docker-build.txt"
                 : > "$WORKSPACE/image-tag.txt"
 
@@ -443,7 +443,7 @@ SNIP
                   --destination "$DOCKERHUB_REPO:$IMAGE_TAG" \
                   --build-arg BASE_IMAGE="$BASE_IMAGE" \
                   --cache=true \
-                  --snapshot-mode=redo
+                  --snapshot-mode=redo 2>&1 | /busybox/tee -a "$WORKSPACE/docker-build.txt"
 
                 echo "$DOCKERHUB_REPO:$IMAGE_TAG" | tee "$WORKSPACE/image-tag.txt"
               '

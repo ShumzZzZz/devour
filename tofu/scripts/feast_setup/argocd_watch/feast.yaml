@@ -42,7 +42,7 @@ spec:
           - configMapRef:
               name: feast-config
           logLevel: debug
-          image: "${DEVOUR_SERVER_IMAGE}"
+          image: "${devourServerImage}"
           imagePullPolicy: "Always"
     offlineStore:
       persistence:
@@ -71,7 +71,7 @@ spec:
             cpu: 1500m
             memory: 20Gi
         logLevel: debug
-        image: "${DEVOUR_SERVER_IMAGE}"
+        image: "${devourServerImage}"
         imagePullPolicy: "Always"
     ui:
       envFrom:
@@ -80,6 +80,6 @@ spec:
       - configMapRef:
           name: feast-config
       logLevel: debug
-      image: "${DEVOUR_SERVER_IMAGE}"
+      image: "${devourServerImage}"
       imagePullPolicy: "Always"
 

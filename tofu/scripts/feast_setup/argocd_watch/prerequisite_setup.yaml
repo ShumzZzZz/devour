@@ -180,9 +180,9 @@ metadata:
   name: feast-config
   namespace: feast
 data:
-  POSTGRES_USER: "feastuser"
-  POSTGRES_DB: "feastdb"
-  DEVOUR_SERVER_IMAGE: "docker.io/shuminzheng/devour:v1.0"  # TODO change to ECR uri
+  postgresUser: "feastuser"
+  postgresDb: "feastdb"
+  devourServerImage: "docker.io/shuminzheng/devour:v1.0"  # TODO change to ECR uri
 ---
 # PersistentVolumeClaim for PostgreSQL data
 apiVersion: v1

@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: feast-postsync-test
+  namespace: feast
+spec:
+  containers:
+    - name: feast-runner
+      image: docker.io/shuminzheng/devour:v1.0
+      stdin: true
+      tty: true
+      command: ["sh", "-c", "sleep infinity"]
+      volumeMounts:
+        - name: feature-yaml
+          mountPath: /feast-data-customize/devour/feature_store.yaml
+          subPath: feature_store.yaml
+  restartPolicy: Never
+  volumes:
+    - name: feature-yaml
+      configMap:
+        name: feast-mle-client

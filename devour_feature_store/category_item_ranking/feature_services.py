@@ -16,3 +16,10 @@ fs_category_ranking_generic_v2 = FeatureService(
     ],
     owner="shumin",
 )
+
+fs_test_v1 = FeatureService(
+    name="fs_test_v1",
+    features=[
+        fv_push_user_propensity_score
+    ]
+)

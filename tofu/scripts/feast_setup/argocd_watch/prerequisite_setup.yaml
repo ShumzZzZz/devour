@@ -182,7 +182,7 @@ metadata:
 data:
   postgresUser: "feastuser"
   postgresDb: "feastdb"
-  devourServerImage: "docker.io/shuminzheng/devour:v1.0"  # TODO change to ECR uri
+  devourServerImage: "docker.io/shuminzheng/devour:c408459"  # TODO change to ECR uri
 ---
 # PersistentVolumeClaim for PostgreSQL data
 apiVersion: v1

@@ -15,7 +15,7 @@ replacements:
           kind: FeatureStore
           name: mle
         fieldPaths:
-          - spec/services/registry/local/server/image
+          - spec.services.registry.local.server.image
           - spec/services/onlineStore/server/image
           - spec/services/ui/image
       - select:

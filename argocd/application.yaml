@@ -1,0 +1,60 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: feast-argocd-app
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/ShumzZzZz/devour.git
+    targetRevision: main
+    path: tofu/scripts/feast_setup/argocd_watch
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: feast
+  revisionHistoryLimit: 10
+  ignoreDifferences:
+    - group: "*"
+      kind: "*"
+      jsonPointers:
+        - /status
+    - group: "apps"
+      kind: "Deployment"
+      jqPathExpressions:
+        - .metadata.annotations["kubectl.kubernetes.io/last-applied-configuration"]
+        - .spec.template.metadata.annotations["kubectl.kubernetes.io/restartedAt"]
+    - group: ""
+      kind: "Service"
+      jsonPointers:
+        - /spec/clusterIP
+        - /spec/clusterIPs
+        - /status
+    - group: ""
+      kind: Pod
+      jqPathExpressions:
+        - .metadata.annotations["sidecar.istio.io/status"]
+        - .metadata.annotations["sidecar.istio.io/inject"]
+        - .metadata.annotations["traffic.sidecar.istio.io/includeInboundPorts"]
+        - .metadata.annotations["traffic.sidecar.istio.io/excludeOutboundPorts"]
+        - .metadata.annotations["proxy.istio.io/config"]
+        - .metadata.annotations["istio.io/rev"]
+    - group: "feast.dev"
+      kind: "FeatureStore"
+      jsonPointers:
+        - /status
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - RespectIgnoreDifferences=true
+    automated:
+      selfHeal: true
+      prune: true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

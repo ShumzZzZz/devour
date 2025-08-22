@@ -1,0 +1,26 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: feast-postsync-apply
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: run-feast-apply
+          image: kustomization-placeholder
+          workingDir: /feast-data-customize/devour
+          command: [ "sh", "-c" ]
+          args:
+            - feast -c /feast-data-customize/devour apply
+          volumeMounts:
+            - name: feast-yaml
+              mountPath: /feast-data-customize/devour/feature_store.yaml
+              subPath: feature_store.yaml
+      volumes:
+        - name: feast-yaml
+          configMap:
+            name: feast-mle-client

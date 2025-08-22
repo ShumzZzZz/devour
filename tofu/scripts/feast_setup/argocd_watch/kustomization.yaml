@@ -4,6 +4,7 @@ kind: Kustomization
 resources:
   - prerequisite_setup.yaml
   - feast.yaml
+  - postsync_hook.yaml
 
 replacements:
   - source:

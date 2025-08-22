@@ -37,5 +37,6 @@ curl "http://${fs_internal_url}/get-online-features" --json '{"features": ["fv_p
 
 curl "http://${fs_external_url}/get-online-features" --json '{"features": ["fv_push_user_propensity_score:score"], "entities": {"user_id": [7216502]}}' | jq
 curl "http://${fs_internal_url}/feast/get-online-features" --json '{"features": ["fv_push_user_propensity_score:score"], "entities": {"user_id": [7216502]}}' | jq
-feast get-online-features -f fv_push_category_ranking:l1_all_list -e user_id=7216502
 
+feast get-online-features -f fv_push_category_ranking:l1_all_list -e user_id=7216502
+curl "http://${fs_external_url}/get-online-features" --json '{"feature_service": "fs_test_v1", "entities": {"user_id": [7216502]}}' | jq

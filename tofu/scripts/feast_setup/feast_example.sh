@@ -194,5 +194,7 @@ aws sts get-caller-identity  # to get the current role
 k get secrets -n jenkins jenkins-operator-credentials-ci -o 'jsonpath={.data.password}' | base64 -d
 k get secrets -n argocd argocd-initial-admin-secret -o 'jsonpath={.data.password}' | base64 -d
 
+argocd login localhost:8080 --username admin --password "$(k get secrets -n argocd argocd-initial-admin-secret -o 'jsonpath={.data.password}' | base64 -d)" --insecure --grpc-web
+
 
 

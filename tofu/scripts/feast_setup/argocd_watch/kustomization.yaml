@@ -23,4 +23,4 @@ replacements:
           kind: Job
           name: feast-postsync-apply
         fieldPaths:
-          - spec.template.spec.containers[name=run-feast-apply].image
+          - spec.template.spec.containers.0.image

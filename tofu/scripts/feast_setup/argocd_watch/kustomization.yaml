@@ -1,0 +1,25 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - prerequisite.yaml
+  - feast.yaml
+
+replacements:
+  - source:
+      kind: ConfigMap
+      name: feast-config
+      fieldPath: data.devourServerImage
+    targets:
+      - select:
+          kind: FeatureStore
+          name: mle
+        fieldPaths:
+          - spec/services/registry/local/server/image
+          - spec/services/onlineStore/server/image
+          - spec/services/ui/image
+      - select:
+          kind: Job
+          name: feast-postsync-apply
+        fieldPaths:
+          - spec/template/spec/containers[name=run-feast-apply]/image

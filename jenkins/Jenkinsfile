@@ -481,6 +481,125 @@ BUSYBOX
       }
     }
 
+    stage('Bump Manifests (Kustomize)') {
+      when { branch 'main' }
+      agent any
+      environment {
+        // Path to the kustomization.yaml that Argo CD watches in THIS repo
+        APP_PATH = 'tofu/scripts/feast_setup/argocd_watch'
+        GITHUB_CONTEXT = 'cd/bump-manifests'
+      }
+      steps {
+        checkout scm
+        publishChecks name: env.GITHUB_CONTEXT,
+                      title: 'Bump Manifests (Kustomize)',
+                      summary: 'Pin image by digest and open PR',
+                      status: 'IN_PROGRESS'
+
+        script {
+          // Construct image ref used in the Docker build stage
+          def computedTag = env.IMAGE_TAG?.trim()
+          if (!computedTag) {
+            computedTag = sh(script: 'git -C "$WORKSPACE" rev-parse --short=7 HEAD', returnStdout: true).trim()
+          }
+          env.IMAGE_TAG = computedTag
+        }
+
+        // Perform the bump using local git workspace (no extra containers required)
+        withCredentials([string(credentialsId: 'github-app-token', variable: 'GITHUB_TOKEN')]) {
+          sh '''
+set -euo pipefail
+cd "$WORKSPACE"
+
+IMAGE_REF="$DOCKERHUB_REPO:$IMAGE_TAG"
+
+mkdir -p .ci/bin
+BIN_DIR="$PWD/.ci/bin"
+PATH="$BIN_DIR:$PATH"
+
+# regctl (query registry for digest without pulling)
+if [ ! -x "$BIN_DIR/regctl" ]; then
+  curl -fsSL "https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64" -o "$BIN_DIR/regctl"
+  chmod +x "$BIN_DIR/regctl"
+fi
+
+# kustomize (edit set image)
+if [ ! -x "$BIN_DIR/kustomize" ]; then
+  curl -fsSL "https://github.com/kubernetes-sigs/kustomize/releases/latest/download/kustomize_linux_amd64.tar.gz" -o /tmp/kustomize.tgz
+  tar -C "$BIN_DIR" -xzf /tmp/kustomize.tgz
+  chmod +x "$BIN_DIR/kustomize"
+fi
+
+# Resolve digest from registry
+DIGEST="$($BIN_DIR/regctl image digest "$IMAGE_REF")"
+echo "Resolved digest: $DIGEST for $IMAGE_REF"
+
+# Create branch and bump kustomization.yaml
+BRANCH="bump/$IMAGE_TAG"
+
+# ensure clean tree for branch work
+git fetch --all --prune
+[ -n "$(git status --porcelain)" ] && echo "Working tree not clean" && exit 1 || true
+
+git switch -c "$BRANCH" || git checkout -b "$BRANCH"
+cd "$APP_PATH"
+
+# Set image to digest in kustomization.yaml
+$BIN_DIR/kustomize edit set image "${DOCKERHUB_REPO}=@${DIGEST}"
+
+git -C "$WORKSPACE" config user.name "ci-bot"
+git -C "$WORKSPACE" config user.email "ci-bot@example.com"
+
+git -C "$WORKSPACE" add "$APP_PATH/kustomization.yaml"
+git -C "$WORKSPACE" commit -m "feat(cd): pin ${DOCKERHUB_REPO} to ${IMAGE_TAG} (${DIGEST})"
+git -C "$WORKSPACE" push -u origin "$BRANCH"
+
+        # Open a PR via GitHub CLI if available; otherwise print the suggested URL
+        if command -v gh >/dev/null 2>&1; then
+          :
+        else
+          echo "gh CLI not found in PATH; printing manual PR URL"
+        fi
+
+        REPO_URL="$(git -C "$WORKSPACE" config --get remote.origin.url)"
+        case "$REPO_URL" in
+          https://github.com/*)
+            OWNER_REPO=${REPO_URL#https://github.com/}; OWNER_REPO=${OWNER_REPO%.git}
+            ;;
+          git@github.com:*)
+            OWNER_REPO=${REPO_URL#git@github.com:}; OWNER_REPO=${OWNER_REPO%.git}
+            ;;
+          *) OWNER_REPO="" ;;
+        esac
+
+        if command -v gh >/dev/null 2>&1 && [ -n "$OWNER_REPO" ]; then
+          # gh uses GH_TOKEN/GITHUB_TOKEN from env, so no interactive auth needed
+          gh pr create \
+            --repo "$OWNER_REPO" \
+            --title "CD: ${IMAGE_TAG}" \
+            --body "Pin image to digest ${DIGEST}" \
+            --base main \
+            --head "$BRANCH" || echo "gh pr create failed; please open manually."
+        else
+          echo "Open a PR from branch ${BRANCH} to main in repo ${OWNER_REPO}"
+        fi
+        '''
+        }
+      }
+      post {
+        always {
+          script {
+            publishChecks name: env.GITHUB_CONTEXT,
+                          title: 'Bump Manifests (Kustomize)',
+                          summary: 'Completed',
+                          detailsURL: env.RUN_DISPLAY_URL,
+                          conclusion: 'SUCCESS',
+                          status: 'COMPLETED'
+          }
+        }
+      }
+    }
+
     stage('PR CI Gate') {
       steps {
         script {

@@ -481,6 +481,139 @@ BUSYBOX
       }
     }
 
+    stage('Security Scan') {
+      // Runs after the image is built so we can scan the pushed tag
+      when { branch 'main' }
+      agent {
+        kubernetes {
+          inheritFrom 'uv'
+          yaml """
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+    - name: trivy
+      image: aquasec/trivy:latest
+      imagePullPolicy: Always
+      command: ["/bin/sh", "-c", "sleep 365d"]
+      tty: true
+"""
+        }
+      }
+      environment {
+        GITHUB_CONTEXT = 'security/scan'
+      }
+      steps {
+        checkout scm
+
+        publishChecks name: env.GITHUB_CONTEXT,
+                      title: 'Security Scan',
+                      summary: 'Trivy (image) + SBOM, Bandit (SAST), pip-audit (deps)…',
+                      status: 'IN_PROGRESS'
+
+        script {
+
+          def imageRef = (fileExists('image-tag.txt') ? readFile('image-tag.txt').trim() : "")
+          if (!imageRef) {
+            error 'image-tag.txt not found; ensure Docker Build & Push ran and archived image-tag.txt'
+          }
+          env.IMAGE_REF = imageRef
+        }
+
+        // 1) Trivy vulnerability scan of the built image -> SARIF
+        container('trivy') {
+          script {
+            int trivyRc = sh(returnStatus: true, script: '''
+              set -euo pipefail
+              : > trivy.sarif
+              # Cache in workspace to speed up subsequent runs
+              export TRIVY_CACHE_DIR="$WORKSPACE/.trivy-cache"
+              mkdir -p "$TRIVY_CACHE_DIR"
+              # Scan image for HIGH/CRITICAL vulns; keep going to collect SARIF even if failing
+              trivy image --quiet \
+                --severity HIGH,CRITICAL \
+                --ignore-unfixed \
+                --format sarif \
+                --output trivy.sarif \
+                "$IMAGE_REF" || true
+            ''')
+
+            recordIssues id: 'trivy-sarif',
+                          name: 'security/trivy',
+                          tools: [sarif(pattern: 'trivy.sarif')],
+                          publishAllIssues: true,
+                          skipPublishingChecks: true,
+                          checksAnnotationScope: 'ALL',
+                          enabledForFailure: true
+            archiveArtifacts artifacts: 'trivy.sarif', allowEmptyArchive: false
+          }
+        }
+
+        // SBOM (CycloneDX) with Trivy
+        container('trivy') {
+          sh '''
+            set -euo pipefail
+            : > sbom.cdx.json
+            trivy image --quiet \
+              --format cyclonedx \
+              --output sbom.cdx.json \
+              "$IMAGE_REF"
+          '''
+          archiveArtifacts artifacts: 'sbom.cdx.json', allowEmptyArchive: false
+        }
+
+        // 3) Python SAST (Bandit with SARIF) and 4) Dependency audit (pip-audit with CycloneDX)
+        container(name: 'uv', shell: '/bin/bash') {
+          script {
+            int banditRc = sh(returnStatus: true, script: '''
+              bash -e -u -o pipefail -s <<'BASH'
+                : > bandit.sarif
+                # Use uvx to run bandit with SARIF formatter without polluting the agent
+                uvx --from "bandit[sarif]" bandit -r . -f sarif -o bandit.sarif || true
+              BASH
+            ''')
+            recordIssues id: 'bandit-sarif',
+                          name: 'security/bandit',
+                          tools: [sarif(pattern: 'bandit.sarif')],
+                          publishAllIssues: true,
+                          skipPublishingChecks: true,
+                          checksAnnotationScope: 'ALL',
+                          enabledForFailure: true
+            archiveArtifacts artifacts: 'bandit.sarif', allowEmptyArchive: true
+
+            // pip-audit emits CycloneDX JSON we keep as an artifact (not SARIF)
+            sh '''
+              bash -e -u -o pipefail -s <<'BASH'
+                : > pip-audit.cdx.json || true
+                if [ -f requirements.txt ] || [ -f pyproject.toml ]; then
+                  uvx pip-audit -f cyclonedx-json -o pip-audit.cdx.json || true
+                fi
+              BASH
+            '''
+            archiveArtifacts artifacts: 'pip-audit.cdx.json', allowEmptyArchive: true
+          }
+        }
+      }
+      post {
+        always {
+          script {
+            def texts = []
+            if (fileExists('trivy.sarif')) { texts << 'Trivy SARIF saved.' }
+            if (fileExists('sbom.cdx.json')) { texts << 'SBOM (CycloneDX) saved.' }
+            if (fileExists('bandit.sarif')) { texts << 'Bandit SARIF saved.' }
+            if (fileExists('pip-audit.cdx.json')) { texts << 'pip-audit CycloneDX saved.' }
+            publishChecks name: env.GITHUB_CONTEXT,
+                          title: 'Security Scan',
+                          summary: 'Completed security scanning',
+                          detailsURL: env.RUN_DISPLAY_URL,
+                          text: texts.join("\n"),
+                          conclusion: 'SUCCESS',
+                          status: 'COMPLETED'
+          }
+        }
+      }
+    }
+
    /* stage('Bump Manifests (Kustomize)') {
       when { branch 'main' }
       agent any

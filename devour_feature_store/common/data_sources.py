@@ -212,7 +212,7 @@ ds_file_newuser_search_keyword = FileSource(
     name="ds_file_newuser_search_keyword",
     path="s3://sagemaker-us-west-2-551230544614/featurestore/hp-online-redis-test/newuser-search-keyword/",
     file_format=ParquetFormat(),
-    timestamp_field="update_time",  #  TODO EventTime
+    timestamp_field="update_time",  #  TODO change to EventTime
 )
 
 ds_push_newuser_search_keyword = PushSource(

@@ -191,10 +191,17 @@ kubectl run awscli-test -n jenkins \
 
 aws sts get-caller-identity  # to get the current role
 
+kubectl port-forward -n monitoring svc/grafana 8081:3000
+kubectl port-forward -n jenkins svc/jenkins-operator-http-ci 8082:8080
+kubectl port-forward -n argocd svc/argocd-server 8083:80
+
 k get secrets -n jenkins jenkins-operator-credentials-ci -o 'jsonpath={.data.password}' | base64 -d
 k get secrets -n argocd argocd-initial-admin-secret -o 'jsonpath={.data.password}' | base64 -d
 
 argocd login localhost:8080 --username admin --password "$(k get secrets -n argocd argocd-initial-admin-secret -o 'jsonpath={.data.password}' | base64 -d)" --insecure --grpc-web
 
+kubectl port-forward -n monitoring svc/grafana 8081:3000
+kubectl port-forward -n jenkins svc/jenkins-operator-http-ci 8082:8080
+kubectl port-forward -n argocd svc/argocd-server 8083:80
 
 

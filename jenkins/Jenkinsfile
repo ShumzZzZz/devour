@@ -510,7 +510,7 @@ spec:
     - name: trivy
       image: aquasec/trivy:latest
       imagePullPolicy: Always
-      command: ["/bin/sh", "-c", "sleep 365d"]
+      command: ["cat"]
       tty: true
 """
         }
@@ -556,7 +556,8 @@ spec:
                           publishAllIssues: true,
                           skipPublishingChecks: true,
                           checksAnnotationScope: 'ALL',
-                          enabledForFailure: true
+                          enabledForFailure: true,
+                          blameDisabled: true
             archiveArtifacts artifacts: 'trivy.sarif', allowEmptyArchive: false
           }
         }
@@ -578,11 +579,12 @@ spec:
         container(name: 'uv', shell: '/bin/bash') {
           script {
             int banditRc = sh(returnStatus: true, script: '''
-              bash -e -u -o pipefail -s <<'BASH'
+              bash -lc '
+                set -euo pipefail
                 : > bandit.sarif
                 # Use uvx to run bandit with SARIF formatter without polluting the agent
                 uvx --from "bandit[sarif]" bandit -r . -f sarif -o bandit.sarif || true
-              BASH
+              '
             ''')
             recordIssues id: 'bandit-sarif',
                           name: 'security/bandit',
@@ -595,12 +597,13 @@ spec:
 
             // pip-audit emits CycloneDX JSON we keep as an artifact (not SARIF)
             sh '''
-              bash -e -u -o pipefail -s <<'BASH'
+              bash -lc '
+                set -euo pipefail
                 : > pip-audit.cdx.json || true
                 if [ -f requirements.txt ] || [ -f pyproject.toml ]; then
                   uvx pip-audit -f cyclonedx-json -o pip-audit.cdx.json || true
                 fi
-              BASH
+              '
             '''
             archiveArtifacts artifacts: 'pip-audit.cdx.json', allowEmptyArchive: true
           }

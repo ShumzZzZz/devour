@@ -369,6 +369,25 @@ SNIP
       }
     }
 
+    stage('PR CI Gate') {
+      steps {
+        script {
+          def failed = []
+          if ((env.RUFF_CHECK_RC ?: '0') != '0') failed << 'Ruff Lint'
+          if ((env.RUFF_FORMAT_RC ?: '0') != '0') failed << 'Ruff Format'
+          if ((env.PYRIGHT_RC ?: '0') != '0') failed << 'Pyright'
+          if ((env.PRECOMMIT_RC ?: '0') != '0') failed << 'pre-commit'
+          if ((env.PYTEST_RC ?: '0') != '0') failed << 'Unit Tests'
+
+          if (failed) {
+            error "CI checks failed: ${failed.join(', ')}"
+          } else {
+            echo 'All CI checks passed.'
+          }
+        }
+      }
+    }
+
     stage('Docker Build & Push') {
       when { branch 'main'; changeset 'devour_feature_store/**'; beforeAgent true }
       agent {
@@ -744,25 +763,6 @@ fi
         }
       }
     }*/
-
-    stage('PR CI Gate') {
-      steps {
-        script {
-          def failed = []
-          if ((env.RUFF_CHECK_RC ?: '0') != '0') failed << 'Ruff Lint'
-          if ((env.RUFF_FORMAT_RC ?: '0') != '0') failed << 'Ruff Format'
-          if ((env.PYRIGHT_RC ?: '0') != '0') failed << 'Pyright'
-          if ((env.PRECOMMIT_RC ?: '0') != '0') failed << 'pre-commit'
-          if ((env.PYTEST_RC ?: '0') != '0') failed << 'Unit Tests'
-
-          if (failed) {
-            error "CI checks failed: ${failed.join(', ')}"
-          } else {
-            echo 'All CI checks passed.'
-          }
-        }
-      }
-    }
 
     // Optional Release Tagging Stage (template)
     /*

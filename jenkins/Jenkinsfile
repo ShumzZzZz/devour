@@ -53,8 +53,8 @@ pipeline {
             def txt = fileExists('lint-report.txt') ? readFile('lint-report.txt') : ''
             def rc = (env.RUFF_CHECK_RC ?: '1') as Integer
             publishChecks name: env.GITHUB_CONTEXT,
-                          title: 'Ruff Lint',
-                          summary: (rc == 0 ? 'Ruff clean ✅' : 'Ruff found issues ❌'),
+                          title: (rc == 0 ? 'Ruff Lint clean ✅' : 'Ruff found issues ❌'),
+                          summary: (rc == 0 ? 'Ruff Lint clean ✅' : 'Ruff found issues ❌'),
                           detailsURL: env.RUN_DISPLAY_URL,
                           text: txt,
                           conclusion: (rc == 0 ? 'SUCCESS' : 'FAILURE'),
@@ -100,7 +100,7 @@ pipeline {
             def txt = fileExists('ruff-format-report.txt') ? readFile('ruff-format-report.txt') : ''
             def rc = (env.RUFF_FORMAT_RC ?: '1') as Integer
             publishChecks name: env.GITHUB_CONTEXT,
-                          title: 'Ruff Format',
+                          title: (rc == 0 ? 'Already formatted ✅' : 'Reformatting needed ❌'),
                           summary: (rc == 0 ? 'Already formatted ✅' : 'Reformatting needed ❌'),
                           detailsURL: env.RUN_DISPLAY_URL,
                           text: txt,
@@ -258,7 +258,7 @@ PY
             def txt = fileExists('pyright-report.txt') ? readFile('pyright-report.txt') : ''
             def rc = (env.PYRIGHT_RC ?: '1') as Integer
             publishChecks name: env.GITHUB_CONTEXT,
-                          title: 'Pyright',
+                          title: (rc == 0 ? 'No type errors ✅' : 'Type issues detected ❌'),
                           summary: (rc == 0 ? 'No type errors ✅' : 'Type issues detected ❌'),
                           detailsURL: env.RUN_DISPLAY_URL,
                           text: txt,
@@ -305,7 +305,7 @@ PY
             def txt = fileExists('pytest-report.txt') ? readFile('pytest-report.txt') : ''
             def rc = (env.PYTEST_RC ?: '1') as Integer
             publishChecks name: env.GITHUB_CONTEXT,
-                          title: 'PyTest',
+                          title: (rc == 0 ? 'All tests passed ✅' : 'Test failures ❌'),
                           summary: (rc == 0 ? 'All tests passed ✅' : 'Test failures ❌'),
                           detailsURL: env.RUN_DISPLAY_URL,
                           text: txt,
@@ -358,7 +358,7 @@ SNIP
             def txt = fileExists('pre-commit-report.txt') ? readFile('pre-commit-report.txt') : ''
             def rc = (env.PRECOMMIT_RC ?: '1') as Integer
             publishChecks name: env.GITHUB_CONTEXT,
-                          title: 'pre-commit',
+                          title: (rc == 0 ? 'All hooks passed ✅' : 'Hook failures ❌'),
                           summary: (rc == 0 ? 'All hooks passed ✅' : 'Hook failures ❌'),
                           detailsURL: env.RUN_DISPLAY_URL,
                           text: txt,

@@ -506,7 +506,7 @@ BUSYBOX
         }
 
         // Perform the bump using local git workspace (no extra containers required)
-        withCredentials([string(credentialsId: 'github-app-token', variable: 'GITHUB_TOKEN')]) {
+        withCredentials([string(credentialsId: 'githubapp-creds', variable: 'GITHUB_TOKEN')]) {
           sh '''
 set -euo pipefail
 cd "$WORKSPACE"

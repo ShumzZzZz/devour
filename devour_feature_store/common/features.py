@@ -160,9 +160,9 @@ fv_push_local_sales_org_hero_products = FeatureView(
     ttl=timedelta(days=365),
     schema=[
         Field(name="sku_list_5k", dtype=String),  # TODO
-        Field(name="sku_list_10k", dtype=String),  # TODO
-        Field(name="sku_list_15k", dtype=String),  # TODO
-        Field(name="sku_list_20k", dtype=String),  # TODO
+        Field(name="sku_list_10k", dtype=String),
+        Field(name="sku_list_15k", dtype=String),
+        Field(name="sku_list_20k", dtype=String),
     ],
     online=True,
     offline=True,

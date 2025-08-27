@@ -502,7 +502,7 @@ BUSYBOX
 
     stage('Security Scan') {
       // Runs after the image is built so we can scan the pushed tag
-      when { branch 'main' }
+      when {  branch 'main'; changeset 'devour_feature_store/**'; beforeAgent true  }
       agent {
         kubernetes {
           inheritFrom 'uv'

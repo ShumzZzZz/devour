@@ -48,7 +48,7 @@ fv_push_buy_it_again_feature_group = FeatureView(
     entities=[et_user],
     ttl=timedelta(days=365),
     schema=[
-        Field(name="buy_it_again_products_lst", dtype=String),  #TODO
+        Field(name="buy_it_again_products_lst", dtype=String),  # TODO
     ],
     online=True,
     offline=True,
@@ -147,7 +147,7 @@ fv_push_local_product_video = FeatureView(
     entities=[et_product],
     ttl=timedelta(days=365),
     schema=[
-        Field(name="video_id", dtype=String),  # TODO
+        Field(name="video_id", dtype=String),  # TODO zhen
     ],
     online=True,
     offline=True,

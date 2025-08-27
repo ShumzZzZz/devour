@@ -432,6 +432,7 @@ SNIP
             computedTag = sh(script: 'git -C "$WORKSPACE" rev-parse --short=7 HEAD', returnStdout: true).trim()
           }
           env.IMAGE_TAG = computedTag
+          env.IMAGE_REF = "${env.DOCKERHUB_REPO}:${env.IMAGE_TAG}"
         }
 
         container('kaniko') {
@@ -458,7 +459,6 @@ BUSYBOX
                 set -o pipefail
                 export DOCKER_CONFIG=/kaniko/.docker
                 : > "$WORKSPACE/docker-build.txt"
-                : > "$WORKSPACE/image-tag.txt"
 
                 /kaniko/executor \
                   --context "$WORKSPACE" \
@@ -467,11 +467,9 @@ BUSYBOX
                   --build-arg BASE_IMAGE="$BASE_IMAGE" \
                   --cache=true \
                   --snapshot-mode=redo 2>&1 | /busybox/tee -a "$WORKSPACE/docker-build.txt"
-
-                echo "$DOCKERHUB_REPO:$IMAGE_TAG" | tee "$WORKSPACE/image-tag.txt"
               '
             ''')
-            archiveArtifacts artifacts: 'docker-build.txt,image-tag.txt', allowEmptyArchive: true
+            archiveArtifacts artifacts: 'docker-build.txt', allowEmptyArchive: true
             env.DOCKER_RC = buildRc.toString()
 
             if (buildRc != 0) {
@@ -484,13 +482,11 @@ BUSYBOX
       post {
         always {
           script {
-            def txt = fileExists('image-tag.txt')
-                      ? "Pushed " + readFile('image-tag.txt')
-                      : (fileExists('docker-build.txt') ? readFile('docker-build.txt') : '')
+            def txt = "Pushed ${env.IMAGE_REF}"
             def rc = (env.DOCKER_RC ?: '0') as Integer
-            publishChecks name: 'image/build',
-                          title: 'Docker Image',
-                          summary: 'Build & push (Kaniko) completed',
+            publishChecks name: 'image/build&push',
+                          title: (rc == 0 ? 'Build & push completed' : 'Build & push failed'),
+                          summary: (rc == 0 ? 'Build & push completed' : 'Build & push failed'),
                           detailsURL: env.RUN_DISPLAY_URL,
                           text: txt,
                           conclusion: (rc == 0 ? 'SUCCESS' : 'FAILURE'),
@@ -531,12 +527,9 @@ spec:
                       status: 'IN_PROGRESS'
 
         script {
-
-          def imageRef = (fileExists('image-tag.txt') ? readFile('image-tag.txt').trim() : "")
-          if (!imageRef) {
-            error 'image-tag.txt not found; ensure Docker Build & Push ran and archived image-tag.txt'
+          if (!env.IMAGE_REF?.trim()) {
+            error 'IMAGE_REF not set; ensure Docker Build & Push ran successfully'
           }
-          env.IMAGE_REF = imageRef
         }
 
         // 1) Trivy vulnerability scan of the built image -> SARIF

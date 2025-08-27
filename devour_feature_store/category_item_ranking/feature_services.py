@@ -18,5 +18,8 @@ fs_category_ranking_generic_v2 = FeatureService(
 )
 
 fs_test_v1 = FeatureService(
-    name="fs_test_v2", features=[fv_push_user_propensity_score]
+    name="fs_test_v2",
+    features=[
+        fv_push_user_propensity_score
+    ]
 )
